@@ -197,7 +197,7 @@ async function init(){
       get('/v1/assets/items/by-type/upgrade?language=spanish'),
       get('/v2/patches').catch(()=>[])
     ]);
-    HEROES=heroes.filter(h=>h.player_selectable!==false&&!h.disabled&&!h.in_development).map(h=>({id:h.id,name:clean(h.name),img:h.images.icon_image_small_webp||h.images.icon_image_small,sig:['signature1','signature2','signature3','signature4'].map(k=>h.items&&h.items[k]).filter(Boolean)}))
+    HEROES=heroes.filter(h=>h.player_selectable!==false&&!h.disabled).map(h=>({id:h.id,name:h.class_name==='hero_baba'?'Yagá (Baba)':clean(h.name),img:h.images.icon_image_small_webp||h.images.icon_image_small,sig:['signature1','signature2','signature3','signature4'].map(k=>h.items&&h.items[k]).filter(Boolean)}))
       .sort((a,b)=>a.name.localeCompare(b.name,'es'));
     HEROES.forEach(h=>HMAP[h.id]=h);
     items.forEach(i=>IMAP[i.id]={id:i.id,name:clean(i.name),slot:i.item_slot_type,tier:i.item_tier,cost:i.cost,img:i.shop_image_webp||i.shop_image||i.image_webp,active:i.is_active_item,cats:cats(i),sus:sus(i)});
