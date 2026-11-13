@@ -59,6 +59,23 @@ button{cursor:pointer}
 .load{color:var(--mute);font-style:italic;padding:8px 0}
 .cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media (max-width:760px){.cols{grid-template-columns:1fr}.items{grid-template-columns:1fr}}
+.tb{font-size:12px;padding:4px 10px;border-radius:999px}
+.tb.on{background:var(--acc);color:#1a1405;border-color:var(--acc);font-weight:600}
+.tb.th.on,.tb.fd.on{background:var(--bad);border-color:var(--bad);color:#fff}
+.tg{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:7px 0;border-top:1px solid var(--line)}
+.tg .sep{width:1px;height:18px;background:var(--line);margin:0 2px}
+.tg select{font-size:12px;padding:4px 8px}
+.tagt{font-size:10px;background:var(--bad);color:#fff;border-radius:4px;padding:0 4px;margin-left:4px;font-weight:700;vertical-align:1px}
+.t2{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-bottom:8px}.t2 h2{margin:0}
+.cols3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.need{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:8px 10px;margin:6px 0}
+.need .row{margin-top:6px}
+.mi{display:inline-flex;align-items:center;gap:6px;background:#0003;border-radius:7px;padding:3px 8px 3px 3px;font-size:13px;border-left:3px solid var(--line)}
+.mi img{width:26px;height:26px}
+.mi.weapon{border-left-color:var(--weapon)}.mi.vitality{border-left-color:var(--vitality)}.mi.spirit{border-left-color:var(--spirit)}
+.minis{display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+.who{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;margin-left:6px}.who img{width:22px;height:22px;border-radius:50%}
+@media (max-width:900px){.cols3{grid-template-columns:1fr}}
 footer{color:var(--mute);font-size:12px;margin:20px 0 30px}
 </style>
 </head>
@@ -86,10 +103,12 @@ footer{color:var(--mute);font-size:12px;margin:20px 0 30px}
 </div>
 
 <div class="panel">
+  <div class="row" id="modeBar" style="margin-bottom:10px"></div>
   <h2 id="pickTitle">Tu héroe</h2>
   <div class="sub" id="pickHelp" style="margin-bottom:8px"></div>
   <div class="heroes" id="heroes"><div class="load">Cargando héroes…</div></div>
   <div class="row" id="foes" style="margin-top:10px"></div>
+  <div id="tags"></div>
 </div>
 
 <div id="out"></div>
@@ -110,11 +129,14 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 const store={get(k,d){try{const v=localStorage.getItem('dlm.'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('dlm.'+k,JSON.stringify(v))}catch(e){}}};
 
 const cache=new Map();
+let act=0;const qq=[];
+const slot=()=>new Promise(r=>{if(act<6){act++;r()}else qq.push(r)});
+const free=()=>{const n=qq.shift();if(n)n();else act--};
 async function get(path){
   if(cache.has(path)) return cache.get(path);
   const p=(async()=>{
     for(let i=0;i<3;i++){
-      const r=await fetch(API+path);
+      await slot(); let r; try{r=await fetch(API+path)}finally{free()}
       if(r.ok) return r.json();
       if(r.status===429||r.status>=500){await new Promise(z=>setTimeout(z,1500*(i+1)));continue}
       throw new Error('HTTP '+r.status);
@@ -125,7 +147,7 @@ async function get(path){
   return p;
 }
 
-const S={tab:store.get('tab','build'),hero:store.get('hero',null),foes:new Set(store.get('foes',[])),badge:store.get('badge','80'),since:null};
+const S={tab:store.get('tab','build'),hero:store.get('hero',null),foes:new Set(store.get('foes',[])),allies:new Set(store.get('allies',[])),tags:store.get('tags',{}),mode:store.get('mode','jug'),side:'foe',badge:store.get('badge','80'),since:null};
 let HEROES=[],HMAP={},IMAP={},PATCHES=[];
 
 function filt(){
@@ -136,6 +158,7 @@ function filt(){
 function wilson(w,n){if(!n)return 0;const z=1.96,p=w/n;return (p+z*z/(2*n)-z*Math.sqrt(p*(1-p)/n+z*z/(4*n*n)))/(1+z*z/n)}
 
 async function init(){
+  loadHash();
   $('#badge').value=S.badge;
   document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;store.set('tab',S.tab);draw()});
   $('#badge').onchange=e=>{S.badge=e.target.value;store.set('badge',S.badge);run()};
@@ -149,11 +172,12 @@ async function init(){
     HEROES=heroes.filter(h=>h.player_selectable!==false&&!h.disabled&&!h.in_development).map(h=>({id:h.id,name:clean(h.name),img:h.images.icon_image_small_webp||h.images.icon_image_small}))
       .sort((a,b)=>a.name.localeCompare(b.name,'es'));
     HEROES.forEach(h=>HMAP[h.id]=h);
-    items.forEach(i=>IMAP[i.id]={id:i.id,name:clean(i.name),slot:i.item_slot_type,tier:i.item_tier,cost:i.cost,img:i.shop_image_webp||i.shop_image||i.image_webp,active:i.is_active_item});
+    items.forEach(i=>IMAP[i.id]={id:i.id,name:clean(i.name),slot:i.item_slot_type,tier:i.item_tier,cost:i.cost,img:i.shop_image_webp||i.shop_image||i.image_webp,active:i.is_active_item,cats:cats(i)});
     PATCHES=patches;
   }catch(e){$('#out').innerHTML=`<div class="warn err">No pude cargar los datos base: ${esc(e.message)}. Recarga en un rato.</div>`;return}
   if(S.hero&&!HMAP[S.hero]) S.hero=null;
   [...S.foes].forEach(f=>{if(!HMAP[f])S.foes.delete(f)});
+  [...S.allies].forEach(f=>{if(!HMAP[f])S.allies.delete(f)});
   buildSince();
   draw();
 }
@@ -181,43 +205,98 @@ function buildSince(){
 }
 
 function drawHeroes(){
-  const c=S.tab==='counter';
-  $('#pickTitle').textContent=c?(S.hero?'Su equipo':'Tu héroe'):'Tu héroe';
-  $('#pickHelp').textContent=c?(S.hero?`Juegas ${HMAP[S.hero].name} (borde dorado). Toca hasta 6 rivales; para cambiar tu héroe, usa el botón de abajo.`:'Primero elige con quién juegas.'):'Elige héroe y verás su build del meta desde el último parche.';
+  const c=S.tab==='counter', co=c&&S.mode==='coach';
+  $('#modeBar').innerHTML=c?`<button class="tb${co?'':' on'}" data-mode="jug">Modo jugador</button><button class="tb${co?' on':''}" data-mode="coach">Modo coach · los 6 contra los 6</button>`:'';
+  document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{S.mode=b.dataset.mode;save();draw()});
+  if(co){
+    $('#pickTitle').textContent='Los dos equipos';
+    $('#pickHelp').textContent='Elige a qué equipo añades y toca héroes (hasta 6 por equipo). Dorado = el tuyo, rojo = el suyo.';
+  } else {
+    $('#pickTitle').textContent=c?(S.hero?'Su equipo':'Tu héroe'):'Tu héroe';
+    $('#pickHelp').textContent=c?(S.hero?`Juegas ${HMAP[S.hero].name} (borde dorado). Toca hasta 6 rivales; para cambiar tu héroe, usa el botón de abajo.`:'Primero elige con quién juegas.'):'Elige héroe y verás su build del meta desde el último parche.';
+  }
   $('#heroes').innerHTML=HEROES.map(h=>{
-    let cls='h'; if(h.id===S.hero)cls+=' me'; if(c&&S.foes.has(h.id))cls+=' foe';
-    if(c&&S.hero&&h.id!==S.hero&&!S.foes.has(h.id)&&S.foes.size>=6)cls+=' dim';
+    let cls='h';
+    if(co){
+      if(S.allies.has(h.id))cls+=' me'; if(S.foes.has(h.id))cls+=' foe';
+      if((S.side==='ally'?S.allies:S.foes).size>=6&&!S.allies.has(h.id)&&!S.foes.has(h.id))cls+=' dim';
+    } else {
+      if(h.id===S.hero)cls+=' me'; if(c&&S.foes.has(h.id))cls+=' foe';
+      if(c&&S.hero&&h.id!==S.hero&&!S.foes.has(h.id)&&S.foes.size>=6)cls+=' dim';
+    }
     return `<div class="${cls}" data-id="${h.id}" title="${esc(h.name)}"><img src="${h.img}" alt="" loading="lazy"><small>${esc(h.name)}</small></div>`}).join('');
   document.querySelectorAll('#heroes .h').forEach(el=>el.onclick=()=>pickHero(+el.dataset.id));
   const f=$('#foes');
-  if(c&&S.hero){
+  if(co){
+    f.innerHTML=`<span class="sub">Añadiendo a:</span><button class="tb${S.side==='ally'?' on':''}" data-side="ally">Mi equipo (${S.allies.size}/6)</button><button class="tb${S.side==='foe'?' on':''}" data-side="foe">Su equipo (${S.foes.size}/6)</button>`+(S.allies.size||S.foes.size?' <button id="clr">Vaciar equipos</button>':'');
+    f.querySelectorAll('[data-side]').forEach(b=>b.onclick=()=>{S.side=b.dataset.side;drawHeroes()});
+    if($('#clr')) $('#clr').onclick=()=>{S.allies.clear();S.foes.clear();save();draw()};
+  } else if(c&&S.hero){
     f.innerHTML=`<button id="chg">Cambiar mi héroe</button>`+(S.foes.size?` <button id="clr">Quitar rivales</button>`:'');
-    $('#chg').onclick=()=>{S.hero=null;store.set('hero',null);draw()};
-    if($('#clr')) $('#clr').onclick=()=>{S.foes.clear();store.set('foes',[]);draw()};
+    $('#chg').onclick=()=>{S.hero=null;save();draw()};
+    if($('#clr')) $('#clr').onclick=()=>{S.foes.clear();save();draw()};
   } else f.innerHTML='';
+  drawTags();
+}
+function drawTags(){
+  const el=$('#tags'), co=S.mode==='coach';
+  if(S.tab!=='counter'||(!co&&!S.hero)||(!S.foes.size&&!(co&&S.allies.size))){el.innerHTML='';return}
+  const T=id=>S.tags[id]||{};
+  const lane=id=>`<select data-ln="${id}">${['sin carril','carril 1','carril 2','carril 3','carril 4'].map((x,i)=>`<option value="${i}"${(T(id).ln||0)===i?' selected':''}>${x}</option>`).join('')}</select>`;
+  const head=id=>`<span class="chip"><img src="${HMAP[id].img}" alt="">${esc(HMAP[id].name)}</span>`;
+  const btn=(id,k,txt,on,cls='')=>`<button class="tb ${cls}${on?' on':''}" data-id="${id}" data-k="${k}">${txt}</button>`;
+  const foeRow=id=>{const t=T(id);return `<div class="tg">${head(id)}${co?lane(id):btn(id,'mine','En mi carril',t.mine)}${btn(id,'fed','Va fed',t.fed,'fd')}<span class="sep"></span>${TH.map(x=>btn(id,'th:'+x.k,x.short,(t.th||[]).includes(x.k),'th')).join('')}</div>`};
+  let h='';
+  if(co&&S.allies.size) h+=`<h3>Mi equipo · carriles</h3>`+[...S.allies].map(id=>`<div class="tg">${head(id)}${lane(id)}</div>`).join('');
+  if(S.foes.size) h+=`<h3>Su equipo · qué está pasando</h3><div class="sub">${co?'Pon el mismo número de carril a los que se enfrentan en la misma línea.':'Marca a tus rivales de línea (hasta 2).'} «Va fed» y lo que hace cada uno se puede cambiar a mitad de partida: la lista se recoloca sola.</div>`+[...S.foes].map(foeRow).join('');
+  el.innerHTML=h;
+  el.querySelectorAll('button[data-k]').forEach(b=>b.onclick=()=>{
+    const id=+b.dataset.id,k=b.dataset.k,t=S.tags[id]||(S.tags[id]={});
+    if(k==='mine'){if(!t.mine&&[...S.foes].filter(e=>S.tags[e]?.mine).length>=2)return;t.mine=!t.mine}
+    else if(k==='fed') t.fed=!t.fed;
+    else {const x=k.slice(3),a=t.th||[];t.th=a.includes(x)?a.filter(y=>y!==x):[...a,x]}
+    save();drawTags();run();
+  });
+  el.querySelectorAll('select[data-ln]').forEach(s=>s.onchange=()=>{(S.tags[+s.dataset.ln]||(S.tags[+s.dataset.ln]={})).ln=+s.value;save();run()});
 }
 function pickHero(id){
-  if(S.tab==='counter'&&S.hero){
+  if(S.tab==='counter'&&S.mode==='coach'){
+    const mine=S.side==='ally'?S.allies:S.foes, other=S.side==='ally'?S.foes:S.allies;
+    if(mine.has(id)) mine.delete(id); else {if(mine.size>=6) return; other.delete(id); mine.add(id)}
+  } else if(S.tab==='counter'&&S.hero){
     if(id===S.hero) return;
     if(S.foes.has(id)) S.foes.delete(id); else if(S.foes.size<6) S.foes.add(id); else return;
-    store.set('foes',[...S.foes]);
-  } else {S.hero=id;store.set('hero',id);S.foes.delete(id);store.set('foes',[...S.foes])}
-  draw();
+  } else {S.hero=id;S.foes.delete(id)}
+  save();draw();
 }
+function save(){store.set('hero',S.hero);store.set('foes',[...S.foes]);store.set('allies',[...S.allies]);store.set('tags',S.tags);store.set('mode',S.mode)}
+function b64e(s){return btoa(unescape(encodeURIComponent(s))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
+function b64d(s){return decodeURIComponent(escape(atob(s.replace(/-/g,'+').replace(/_/g,'/'))))}
+function shareURL(){const t={};[...S.foes,...S.allies].forEach(id=>{if(S.tags[id])t[id]=S.tags[id]});
+  return location.href.split('#')[0]+'#p='+b64e(JSON.stringify({m:S.mode,h:S.hero,a:[...S.allies],f:[...S.foes],t,b:S.badge}))}
+function loadHash(){const m=location.hash.match(/p=([\w-]+)/);if(!m)return;
+  try{const o=JSON.parse(b64d(m[1]));S.tab='counter';S.mode=o.m==='coach'?'coach':'jug';S.hero=o.h??null;S.allies=new Set(o.a||[]);S.foes=new Set(o.f||[]);S.tags=o.t||{};if(o.b!=null)S.badge=String(o.b)}catch(e){}}
 function draw(){
+  if(S.mode!=='coach'&&S.hero) S.foes.delete(S.hero);
   document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===S.tab));
   drawHeroes(); run();
 }
 let runId=0;
 function run(){
-  const id=++runId, out=$('#out');
-  if(!S.hero){out.innerHTML='';return}
-  if(S.tab==='counter'&&!S.foes.size){out.innerHTML='<div class="panel"><div class="sub">Marca a los rivales en la rejilla de arriba (hasta 6).</div></div>';return}
-  out.innerHTML='<div class="panel"><div class="load">Consultando partidas desde el parche…</div></div>';
-  (S.tab==='build'?buildTab():counterTab()).then(html=>{if(id===runId){out.innerHTML=html;wire()}})
+  const id=++runId, out=$('#out'), co=S.tab==='counter'&&S.mode==='coach';
+  if(co){if(!S.allies.size||!S.foes.size){out.innerHTML='<div class="panel"><div class="sub">Pon al menos un héroe en cada equipo.</div></div>';return}}
+  else {
+    if(!S.hero){out.innerHTML='';return}
+    if(S.tab==='counter'&&!S.foes.size){out.innerHTML='<div class="panel"><div class="sub">Marca a los rivales en la rejilla de arriba (hasta 6).</div></div>';return}
+  }
+  out.innerHTML=`<div class="panel"><div class="load">${co?`Consultando partidas de ${S.allies.size} héroes por fases (puede tardar hasta medio minuto)…`:'Consultando partidas desde el parche…'}</div></div>`;
+  (S.tab==='build'?buildTab():co?coachTab():counterTab()).then(html=>{if(id===runId){out.innerHTML=html;wire()}})
     .catch(e=>{if(id===runId) out.innerHTML=`<div class="warn err">Falló la consulta: ${esc(e.message)}. Prueba otra ventana de fechas o recarga.</div>`});
 }
-function wire(){document.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>{navigator.clipboard?.writeText(b.dataset.copy);b.textContent='Copiado';setTimeout(()=>b.textContent='Copiar ID',1200)})}
+function wire(){
+  document.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>{navigator.clipboard?.writeText(b.dataset.copy);b.textContent='Copiado';setTimeout(()=>b.textContent='Copiar ID',1200)});
+  document.querySelectorAll('[data-share]').forEach(b=>b.onclick=()=>{const u=shareURL();history.replaceState(null,'',u);navigator.clipboard?.writeText(u);b.textContent='Enlace copiado';setTimeout(()=>b.textContent='Copiar enlace del plan',1500)});
+}
 
 function itemCard(it,right,extra=''){
   return `<div class="it ${it.slot||''}"><img src="${it.img}" alt="" loading="lazy"><div><div class="n">${esc(it.name)}${extra}</div>${right.sub||''}</div><div class="s ${right.cls||''}">${right.big}</div></div>`;
@@ -304,42 +383,125 @@ function trendOf(H,t){
   return {list,by};
 }
 
-async function counterTab(){
-  const H=S.hero, f=filt(), foes=[...S.foes];
-  const [its,cs]=await Promise.all([
-    get(`/v1/analytics/item-stats?hero_id=${H}&bucket=enemy_hero&${f}&min_matches=10`),
-    get(`/v1/analytics/hero-counter-stats?${f}&same_lane_filter=false&min_matches=10`)
-  ]);
-  // Rendimiento del héroe contra cada rival y en general
-  let W=0,M=0; const vs={};
-  cs.filter(r=>r.hero_id===H).forEach(r=>{W+=r.wins;M+=r.matches_played;vs[r.enemy_hero_id]={w:r.wins,m:r.matches_played}});
-  if(!M) return `<div class="warn">No hay partidas de ${esc(HMAP[H].name)} con estos filtros. Baja el rango o amplía las fechas.</div>`;
-  const hwr=W/M;
-  // Media de cada objeto (sumando todos los rivales) y celda objeto×rival
-  const base={}, cell={};
-  its.forEach(r=>{const b=base[r.item_id]||(base[r.item_id]={w:0,m:0});b.w+=r.wins;b.m+=r.matches;(cell[r.item_id]||(cell[r.item_id]={}))[r.bucket]={w:r.wins,m:r.matches}});
-  const K=150, res=[];
-  for(const id in cell){
-    const it=IMAP[id]; if(!it||base[id].m<200) continue;
-    const bwr=base[id].w/base[id].m; let score=0,n=0; const why=[];
-    foes.forEach(e=>{const c=cell[id][e], v=vs[e]; if(!c||!v||c.m<15) return;
-      const d=((c.w/c.m)-bwr)-((v.w/v.m)-hwr), sd=d*c.m/(c.m+K);
-      score+=sd;n+=c.m;why.push({e,sd});});
-    if(why.length) res.push({it,score,n,why:why.sort((a,b)=>Math.abs(b.sd)-Math.abs(a.sd))});
+// ---------- Contra su equipo: fases, carril, fed y lo que hacen ----------
+const TH=[
+  {k:'cura',short:'Se cura',name:'Se cura mucho',need:'anticuración',tag:'ANTICURACIÓN',n:2},
+  {k:'balas',short:'Balas',name:'Mucho daño de balas',need:'resistencia a balas o frenar su cadencia',tag:'VS BALAS',n:3},
+  {k:'esp',short:'Espíritu',name:'Ráfaga de daño espiritual',need:'resistencia espiritual o silencio',tag:'VS ESPÍRITU',n:3},
+  {k:'melee',short:'Melee',name:'Pega cuerpo a cuerpo',need:'resistencia cuerpo a cuerpo',tag:'VS MELEE',n:2},
+  {k:'ctrl',short:'Controles',name:'Stuns, ralentizaciones y controles',need:'resistencia a efectos o inmunidad',tag:'VS CONTROL',n:2},
+  {k:'escapa',short:'Se escapa',name:'Mucha movilidad, se escapa',need:'ralentizar o aturdir',tag:'VS HUIDA',n:2}];
+// Clasifica cada objeto por sus propiedades: sobrevive a los parches sin tocar la página.
+function cats(i){
+  const v=k=>{const p=(i.properties||{})[k];const x=parseFloat(String(p&&typeof p==='object'?p.value:p));return isNaN(x)?0:x};
+  const c=i.class_name||'', s=[];
+  if(v('HealAmpReceivePenaltyPercent')<0) s.push('cura');
+  if((v('BulletResist')>=12&&!/shredder/.test(c))||v('FireRateSlow')>0) s.push('balas');
+  if((v('TechResist')>=10&&!/vulnerability|exposure/.test(c))||v('SilenceDuration')>0) s.push('esp');
+  if(v('MeleeResistPercent')>0) s.push('melee');
+  if((v('StatusResistancePercent')>0&&!/weighted_shots/.test(c))||v('SlowResistancePercent')>0||v('StatusImmuneDuration')>0||/debuff_re|reduce_debuff|unstoppable/.test(c)) s.push('ctrl');
+  if(v('SlowPercent')>0||v('MovementSpeedSlow')>0||v('StunDuration')>0) s.push('escapa');
+  return s;
+}
+const PH=[{k:'carril',name:'Carril',sub:'min 0-10'},{k:'media',name:'Media partida',sub:'min 10-25'},{k:'final',name:'Final',sub:'min 25+'}];
+const K=150;
+function agg(rows,bucket){const by={};let W=0,M=0;
+  (rows||[]).forEach(r=>{if(bucket!=null&&r.bucket!==bucket)return;const b=by[r.item_id]||(by[r.item_id]={w:0,m:0});b.w+=r.wins;b.m+=r.matches;W+=r.wins;M+=r.matches});
+  return {by,B:M?W/M:0,M}}
+// Ventaja de cada objeto en una situación = (WR objeto ahí − media ahí) − (WR objeto normal − media normal), encogida con m/(m+K).
+function score(terms,ref,minRef,cov){
+  const tot=terms.reduce((s,t)=>s+t.w,0), out={};
+  for(const id in ref.by){
+    const it=IMAP[id], r0=ref.by[id]; if(!it||r0.m<minRef) continue;
+    let num=0,den=0; const why=[];
+    terms.forEach(t=>{const R=t.ref||ref, c=t.c.by[id], r=R.by[id]; if(!c||c.m<15||!r||r.m<40) return;
+      const d=(c.w/c.m-t.c.B)-(r.w/r.m-R.B), sd=d*c.m/(c.m+K); num+=t.w*sd; den+=t.w; why.push({e:t.e,kind:t.kind,sd});});
+    if(!den||den<tot*cov) continue;
+    out[id]={it,score:num/den,why:why.sort((a,b)=>Math.abs(b.sd)-Math.abs(a.sd)),n:r0.m};
   }
-  const fn=e=>HMAP[e]?.name||e;
-  let html=`<div class="panel"><h2>${esc(HMAP[H].name)} contra ${foes.map(e=>esc(fn(e))).join(', ')}</h2><div class="row">`+
-    foes.map(e=>{const v=vs[e];if(!v)return `<span class="chip"><img src="${HMAP[e].img}" alt="">${esc(fn(e))} <span class="mute">sin datos</span></span>`;
-      const d=v.w/v.m-hwr;return `<span class="chip"><img src="${HMAP[e].img}" alt="">${esc(fn(e))} <b class="${d>=0?'pos':'neg'}">${sgn(d)}</b></span>`}).join('')+
-    `</div><div class="sub" style="margin-top:6px">Cuánto ganas contra cada uno respecto a tu media (${pct(hwr)}).</div>`;
-  const chip=w=>`<span class="${w.sd>=0?'pos':'neg'}">vs ${esc(fn(w.e))} ${sgn(w.sd)}</span>`;
-  const good=res.filter(r=>r.score>0.004).sort((a,b)=>b.score-a.score).slice(0,10);
-  const bad=res.filter(r=>r.score<-0.004).sort((a,b)=>a.score-b.score).slice(0,8);
-  const card=r=>itemCard(r.it,{big:sgn(r.score),cls:r.score>=0?'pos':'neg',sub:`<div class="m">${r.it.cost?r.it.cost.toLocaleString('es-ES')+' almas':''}</div><div class="why">${r.why.slice(0,4).map(chip).join('')}</div>`});
-  html+=`<div class="cols"><div><h3 class="pos">Cómpralo</h3>${good.length?'<div class="items" style="grid-template-columns:1fr">'+good.map(card).join('')+'</div>':'<div class="sub">Nada destaca claramente: sigue la build del meta.</div>'}</div>
-    <div><h3 class="neg">Evítalo esta partida</h3>${bad.length?'<div class="items" style="grid-template-columns:1fr">'+bad.map(card).join('')+'</div>':'<div class="sub">Nada rinde especialmente mal contra este equipo.</div>'}</div></div>
-    <div class="sub" style="margin-top:10px">La cifra es cuántos puntos de victoria gana ese objeto contra este equipo respecto a lo que gana normalmente, ya descontado lo bien o mal que se te da cada emparejamiento. Con pocas partidas la cifra se encoge hacia cero, así que lo que sale aquí tiene base.</div></div>`;
-  return html;
+  return out;
+}
+async function plan(H,laneFoes){
+  const f=filt(), q=s=>get(`/v1/analytics/item-stats?hero_id=${H}&${f}&min_matches=10&${s}`);
+  const foes=[...S.foes], fedIds=foes.filter(e=>S.tags[e]?.fed), L=laneFoes.slice(0,2), E='max_bought_at_s=600';
+  const [lb,lanes,duo,lt,mid,late,feds]=await Promise.all([
+    L.length?q(E):null,
+    Promise.all(L.map(e=>q(`${E}&enemy_hero_ids=${e}&same_lane_filter=true`))),
+    L.length===2?q(`${E}&enemy_hero_ids=${L.join(',')}&enemy_hero_ids_all_match=true&same_lane_filter=true`).catch(()=>null):null,
+    L.length?null:q(`${E}&bucket=enemy_hero`),
+    q('min_bought_at_s=600&max_bought_at_s=1500&bucket=enemy_hero'),
+    q('min_bought_at_s=1500&bucket=enemy_hero'),
+    Promise.all(fedIds.map(e=>Promise.all([q(`min_bought_at_s=600&enemy_hero_ids=${e}&min_enemy_networth=35000&max_duration_s=2100`),q(`min_bought_at_s=600&enemy_hero_ids=${e}`)]).catch(()=>null)))
+  ]);
+  const P={};
+  if(L.length){
+    const terms=L.map((e,i)=>({e,kind:'carril',w:1,c:agg(lanes[i])}));
+    if(duo){const c=agg(duo);if(c.M)terms.push({e:L,kind:'pareja',w:1,c})}
+    P.carril={res:score(terms,agg(lb),60,0),lane:true,n:Math.min(...lanes.map(x=>agg(x).M))};
+  } else P.carril={res:score(foes.map(e=>({e,kind:'eq',w:1,c:agg(lt,e)})),agg(lt),60,0.5),lane:false};
+  const team=rows=>{
+    const terms=foes.map(e=>{const fd=S.tags[e]?.fed;return {e,kind:fd?'fedw':'eq',w:fd?2:1,c:agg(rows,e)}});
+    fedIds.forEach((e,i)=>{const x=feds[i];if(!x)return;const c=agg(x[0]);if(c.M)terms.push({e,kind:'fed',w:1,c,ref:agg(x[1])})});
+    return score(terms,agg(rows),100,0.5)};
+  P.media={res:team(mid)}; P.final={res:team(late)};
+  return P;
+}
+function needs(){const N={};[...S.foes].forEach(e=>(S.tags[e]?.th||[]).forEach(k=>(N[k]||(N[k]=[])).push(e)));return N}
+function phaseLists(res,N){
+  const arr=Object.values(res).map(r=>{const m=(r.it.cats||[]).filter(k=>N[k]);return {...r,m,pri:r.score+0.006*m.length}});
+  return {buy:arr.filter(r=>r.score>0.002||(r.m.length&&r.score>-0.002)).sort((a,b)=>b.pri-a.pri).slice(0,6),
+    avoid:arr.filter(r=>r.score<-0.004&&!r.m.length).sort((a,b)=>a.score-b.score).slice(0,3)};
+}
+const fn=e=>Array.isArray(e)?'la pareja':(HMAP[e]?.name||e);
+const thTags=m=>(m||[]).map(k=>`<span class="tagt">${TH.find(x=>x.k===k).tag}</span>`).join('');
+function chipW(w){const lab={carril:`vs ${fn(w.e)} en carril`,pareja:'vs los dos juntos',eq:`vs ${fn(w.e)}`,fedw:`vs ${fn(w.e)}`,fed:`${fn(w.e)} fed`}[w.kind];
+  return `<span class="${w.sd>=0?'pos':'neg'}">${esc(lab)} ${sgn(w.sd)}</span>`}
+const ccard=r=>itemCard(r.it,{big:sgn(r.score),cls:r.score>=0?'pos':'neg',sub:`<div class="m">${r.it.cost?r.it.cost.toLocaleString('es-ES')+' almas · ':''}${r.n.toLocaleString('es-ES')} compras</div><div class="why">${r.why.slice(0,3).map(chipW).join('')}</div>`},thTags(r.m));
+const mini=(r,ph)=>`<span class="mi ${r.it.slot||''}"><img src="${r.it.img}" alt="" loading="lazy">${esc(r.it.name)} <b class="${r.score>=0?'pos':'neg'}">${sgn(r.score)}</b>${ph?` <span class="mute">${ph}</span>`:''}${thTags(r.m)}</span>`;
+function bestOf(P,k){const L=[];PH.forEach(ph=>Object.values(P[ph.k].res).forEach(r=>{if(r.it.cats.includes(k))L.push({...r,ph:ph.name})}));
+  const by={};L.forEach(r=>{if(!by[r.it.id]||r.score>by[r.it.id].score)by[r.it.id]=r});return Object.values(by).sort((a,b)=>b.score-a.score)}
+function foeChips(list){return `<div class="row">`+list.map(e=>{const t=S.tags[e]||{};
+  return `<span class="chip"><img src="${HMAP[e].img}" alt="">${esc(fn(e))}${t.mine&&S.mode!=='coach'?' <span class="tag">CARRIL</span>':''}${t.ln&&S.mode==='coach'?` <span class="mute">c${t.ln}</span>`:''}${t.fed&&S.foes.has(e)?' <span class="tagt">FED</span>':''}</span>`}).join('')+`</div>`}
+const NOTE=`<div class="sub" style="margin-top:12px">La cifra son puntos de victoria que gana ese objeto, comprado en esa fase, contra esos rivales, respecto a lo que gana normalmente con ese héroe en esa misma fase. <b>Carril</b>: solo partidas en las que ese rival iba en la misma línea (y la pareja exacta, si hay partidas). <b>Va fed</b>: ese rival pesa el doble y se suma lo que funcionó en partidas en las que su héroe acabó con 35.000+ almas en menos de 35 minutos. Las etiquetas rojas responden a lo que marcaste que hacen: suben puestos aunque la cifra sea algo menor, pero la cifra es siempre el dato real. Con pocas partidas todo se encoge hacia cero.</div>`;
+async function counterTab(){
+  const H=S.hero, foes=[...S.foes], L=foes.filter(e=>S.tags[e]?.mine), N=needs();
+  const P=await plan(H,L);
+  let html=`<div class="panel"><div class="t2"><h2>${esc(HMAP[H].name)} contra su equipo</h2><button class="copy" data-share>Copiar enlace del plan</button></div>${foeChips(foes)}`;
+  if(!L.length) html+=`<div class="warn">Marca quién va en tu carril (arriba, «En mi carril») para afinar la fase de carril. Mientras tanto la calculo contra el equipo entero.</div>`;
+  else if(P.carril.n<300) html+=`<div class="warn">Pocas partidas de ${esc(HMAP[H].name)} contra ${L.map(fn).join(' y ')} en la misma línea: la fase de carril es orientativa.</div>`;
+  const ks=Object.keys(N);
+  if(ks.length){
+    html+=`<h3>Respuesta a lo que hacen</h3>`;
+    ks.forEach(k=>{const T=TH.find(x=>x.k===k), b=bestOf(P,k).slice(0,3);
+      html+=`<div class="need"><div><b>${T.name}</b> <span class="mute">(${N[k].map(fn).join(', ')}) → ${T.need}</span></div><div class="row">${b.map(r=>mini(r,r.ph)).join('')||'<span class="sub">Sin datos suficientes de esos objetos con tu héroe.</span>'}</div></div>`});
+  }
+  html+=`<div class="cols3">`+PH.map(ph=>{const p=P[ph.k], {buy,avoid}=phaseLists(p.res,N);
+    return `<div><h3>${ph.name} <span class="mute">· ${ph.sub}</span></h3>${ph.k==='carril'?`<div class="sub" style="margin-bottom:6px">${p.lane?'Contra '+L.map(fn).join(' y '):'Contra el equipo entero'}</div>`:''}
+    ${buy.length?'<div class="items" style="grid-template-columns:1fr">'+buy.map(ccard).join('')+'</div>':'<div class="sub">Nada destaca: sigue la build del meta.</div>'}
+    ${avoid.length?`<div class="sub neg" style="margin:10px 0 6px"><b>Evítalo</b></div><div class="items" style="grid-template-columns:1fr">${avoid.map(ccard).join('')}</div>`:''}</div>`}).join('')+`</div>`;
+  return html+NOTE+'</div>';
+}
+async function coachTab(){
+  const allies=[...S.allies], foes=[...S.foes], N=needs(), ln=id=>S.tags[id]?.ln||0;
+  const plans=await Promise.all(allies.map(a=>plan(a,foes.filter(e=>ln(a)&&ln(e)===ln(a))).catch(e=>({err:e.message}))));
+  let html=`<div class="panel"><div class="t2"><h2>Plan de compras del equipo</h2><button class="copy" data-share>Copiar enlace del plan</button></div>
+    <div class="sub" style="margin-bottom:4px">Mi equipo</div>${foeChips(allies)}<div class="sub" style="margin:8px 0 4px">Su equipo</div>${foeChips(foes)}`;
+  const ks=Object.keys(N);
+  if(ks.length){
+    html+=`<h3>Reparto de counters</h3><div class="sub" style="margin-bottom:6px">Quién del equipo saca más de cada counter según los datos de su héroe. No hace falta que lo compren todos.</div>`;
+    ks.forEach(k=>{const T=TH.find(x=>x.k===k);
+      const cand=allies.map((a,i)=>plans[i].err?null:{a,b:bestOf(plans[i],k)[0]}).filter(c=>c&&c.b).sort((x,y)=>y.b.score-x.b.score);
+      const pick=cand.filter(c=>c.b.score>0).slice(0,T.n), use=pick.length?pick:cand.slice(0,1);
+      html+=`<div class="need"><div><b>${T.name}</b> <span class="mute">(${N[k].map(fn).join(', ')}) → ${T.need}</span></div><div class="row">${use.map(c=>`<span class="who"><img src="${HMAP[c.a].img}" alt="">${esc(fn(c.a))}</span>${mini(c.b,c.b.ph)}`).join('')||'<span class="sub">Sin datos suficientes.</span>'}</div></div>`});
+  } else html+=`<div class="sub" style="margin-top:8px">Marca qué hace cada rival (cura, balas, controles…) y aquí se reparte quién compra cada counter.</div>`;
+  html+=`<h3>Plan por jugador</h3>`;
+  allies.forEach((a,i)=>{const P=plans[i], L=foes.filter(e=>ln(a)&&ln(e)===ln(a));
+    html+=`<div class="build"><div class="t"><b>${esc(fn(a))}</b><span class="mute">${L.length?'Carril contra '+L.map(fn).join(' y '):'Sin carril marcado: carril contra el equipo entero'}</span></div>`;
+    if(P.err){html+=`<div class="warn err">No pude consultar a ${esc(fn(a))}: ${esc(P.err)}</div></div>`;return}
+    html+=`<div class="cols3">`+PH.map(ph=>{const {buy,avoid}=phaseLists(P[ph.k].res,N);
+      return `<div class="cat"><div class="cn">${ph.name} · ${ph.sub}</div><div class="minis">${buy.slice(0,4).map(r=>mini(r)).join('')||'<span class="sub">Nada destaca: build del meta.</span>'}</div>${avoid.length?`<div class="cn neg" style="margin-top:4px">Evita: ${avoid.slice(0,2).map(r=>esc(r.it.name)).join(', ')}</div>`:''}</div>`}).join('')+`</div></div>`;
+  });
+  return html+NOTE+'</div>';
 }
 init();
 </script>
