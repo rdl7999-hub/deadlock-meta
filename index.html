@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Deadlock · Meta en vivo</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23e8b04a'/%3E%3Cpath d='M4 3h4a5 5 0 010 10H4z' fill='%230f1012'/%3E%3C/svg%3E">
+<style>
+:root{--bg:#0f1012;--panel:#17191c;--panel2:#1f2226;--line:#2c3036;--text:#e9e6df;--mute:#9a978f;--acc:#e8b04a;--good:#5fd38a;--bad:#ef6b5e;--weapon:#e0913a;--vitality:#6cc04a;--spirit:#a77be0}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:var(--acc)}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+header h1{font-size:22px;margin:0 0 4px;letter-spacing:.3px}
+header h1 span{color:var(--acc)}
+.sub{color:var(--mute);font-size:13px}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:12px 0}
+select,button{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font:inherit;font-size:14px}
+button{cursor:pointer}
+.tabs{display:flex;gap:6px;margin:14px 0 10px}
+.tabs button.on{background:var(--acc);color:#1a1405;border-color:var(--acc);font-weight:600}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin:12px 0}
+.panel h2{font-size:16px;margin:0 0 10px}
+.panel h3{font-size:14px;margin:14px 0 8px;color:var(--mute);font-weight:600;text-transform:uppercase;letter-spacing:.6px}
+.heroes{display:grid;grid-template-columns:repeat(auto-fill,minmax(54px,1fr));gap:6px}
+.h{position:relative;background:var(--panel2);border:2px solid transparent;border-radius:9px;padding:3px;cursor:pointer;text-align:center}
+.h img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;display:block}
+.h small{display:block;font-size:10px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.h.me{border-color:var(--acc)}
+.h.foe{border-color:var(--bad)}
+.h.foe::after{content:"✕";position:absolute;top:1px;right:4px;color:var(--bad);font-weight:700;font-size:12px}
+.h.dim{opacity:.35}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:3px 10px 3px 4px;font-size:13px}
+.chip img{width:22px;height:22px;border-radius:50%}
+.pos{color:var(--good)}.neg{color:var(--bad)}.mute{color:var(--mute)}
+.items{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px}
+.it{display:flex;gap:10px;align-items:center;background:var(--panel2);border:1px solid var(--line);border-left:4px solid var(--line);border-radius:9px;padding:7px 9px}
+.it.weapon{border-left-color:var(--weapon)}.it.vitality{border-left-color:var(--vitality)}.it.spirit{border-left-color:var(--spirit)}
+.it img{width:38px;height:38px;flex:none}
+.it .n{font-weight:600;font-size:14px}
+.it .m{font-size:12px;color:var(--mute)}
+.it .s{margin-left:auto;font-weight:700;font-size:15px;text-align:right;white-space:nowrap}
+.tag{font-size:10px;background:var(--acc);color:#1a1405;border-radius:4px;padding:0 4px;margin-left:4px;font-weight:700;vertical-align:1px}
+.why{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}
+.why span{font-size:11px;background:#0003;border-radius:4px;padding:0 5px}
+.build{border:1px solid var(--line);border-radius:10px;padding:10px;margin:10px 0;background:var(--panel2)}
+.build .t{display:flex;flex-wrap:wrap;gap:8px;align-items:baseline;justify-content:space-between}
+.build .t b{font-size:15px}
+.cat{margin-top:8px}
+.cat .cn{font-size:12px;color:var(--mute);margin-bottom:4px}
+.icons{display:flex;flex-wrap:wrap;gap:4px}
+.icons img{width:40px;height:40px;background:var(--bg);border-radius:6px;border-bottom:3px solid var(--line)}
+.icons img.weapon{border-bottom-color:var(--weapon)}.icons img.vitality{border-bottom-color:var(--vitality)}.icons img.spirit{border-bottom-color:var(--spirit)}
+.copy{font-size:12px;padding:3px 8px}
+.warn{background:#3a2a10;border:1px solid #6b4a14;color:#f3d29a;border-radius:8px;padding:8px 10px;font-size:13px;margin:8px 0}
+.err{background:#3a1512;border-color:#7a2a22;color:#f6b9b2}
+.load{color:var(--mute);font-style:italic;padding:8px 0}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:760px){.cols{grid-template-columns:1fr}.items{grid-template-columns:1fr}}
+footer{color:var(--mute);font-size:12px;margin:20px 0 30px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Deadlock · <span>Meta en vivo</span></h1>
+  <div class="sub" id="patch">Buscando el último parche…</div>
+</header>
+
+<div class="bar">
+  <label>Datos desde <select id="since"></select></label>
+  <label>Rango <select id="badge">
+    <option value="0">Todos</option>
+    <option value="70">Emisario+</option>
+    <option value="80">Oráculo+</option>
+    <option value="90">Fantasma+</option>
+    <option value="100">Ascendente+</option>
+  </select></label>
+</div>
+
+<div class="tabs">
+  <button data-tab="build">Build del meta</button>
+  <button data-tab="counter">Contra su equipo</button>
+</div>
+
+<div class="panel">
+  <h2 id="pickTitle">Tu héroe</h2>
+  <div class="sub" id="pickHelp" style="margin-bottom:8px"></div>
+  <div class="heroes" id="heroes"><div class="load">Cargando héroes…</div></div>
+  <div class="row" id="foes" style="margin-top:10px"></div>
+</div>
+
+<div id="out"></div>
+
+<footer>
+  Datos de <a href="https://deadlock-api.com" target="_blank" rel="noopener">deadlock-api.com</a>, consultados en directo cada vez que abres o cambias algo (la API los cachea 1 hora).
+  Las ventajas se miden contra la media del propio objeto y del propio emparejamiento, no en bruto. Objetos caros comprados tarde salen inflados en «Build del meta»: mira la frecuencia, no solo el %.
+</footer>
+</div>
+
+<script>
+const API='https://api.deadlock-api.com';
+const $=s=>document.querySelector(s);
+const clean=s=>(s||'').replace(/[⁠ ]/g,m=>m===' '?' ':'').replace(/\s*\/\s*a$/,'');
+const pct=x=>(x*100).toFixed(1).replace('.',',')+'%';
+const sgn=x=>(x>=0?'+':'−')+Math.abs(x*100).toFixed(1).replace('.',',');
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const store={get(k,d){try{const v=localStorage.getItem('dlm.'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('dlm.'+k,JSON.stringify(v))}catch(e){}}};
+
+const cache=new Map();
+async function get(path){
+  if(cache.has(path)) return cache.get(path);
+  const p=(async()=>{
+    for(let i=0;i<3;i++){
+      const r=await fetch(API+path);
+      if(r.ok) return r.json();
+      if(r.status===429||r.status>=500){await new Promise(z=>setTimeout(z,1500*(i+1)));continue}
+      throw new Error('HTTP '+r.status);
+    }
+    throw new Error('la API no responde ahora mismo');
+  })();
+  cache.set(path,p); p.catch(()=>cache.delete(path));
+  return p;
+}
+
+const S={tab:store.get('tab','build'),hero:store.get('hero',null),foes:new Set(store.get('foes',[])),badge:store.get('badge','80'),since:null};
+let HEROES=[],HMAP={},IMAP={},PATCHES=[];
+
+function filt(){
+  let q='min_unix_timestamp='+S.since;
+  if(+S.badge>0) q+='&min_average_badge='+S.badge;
+  return q;
+}
+function wilson(w,n){if(!n)return 0;const z=1.96,p=w/n;return (p+z*z/(2*n)-z*Math.sqrt(p*(1-p)/n+z*z/(4*n*n)))/(1+z*z/n)}
+
+async function init(){
+  $('#badge').value=S.badge;
+  document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;store.set('tab',S.tab);draw()});
+  $('#badge').onchange=e=>{S.badge=e.target.value;store.set('badge',S.badge);run()};
+  $('#since').onchange=e=>{S.since=+e.target.value;run()};
+  try{
+    const [heroes,items,patches]=await Promise.all([
+      get('/v1/assets/heroes?language=spanish&only_active=true'),
+      get('/v1/assets/items/by-type/upgrade?language=spanish'),
+      get('/v2/patches').catch(()=>[])
+    ]);
+    HEROES=heroes.filter(h=>h.player_selectable!==false&&!h.disabled&&!h.in_development).map(h=>({id:h.id,name:clean(h.name),img:h.images.icon_image_small_webp||h.images.icon_image_small}))
+      .sort((a,b)=>a.name.localeCompare(b.name,'es'));
+    HEROES.forEach(h=>HMAP[h.id]=h);
+    items.forEach(i=>IMAP[i.id]={id:i.id,name:clean(i.name),slot:i.item_slot_type,tier:i.item_tier,cost:i.cost,img:i.shop_image_webp||i.shop_image||i.image_webp,active:i.is_active_item});
+    PATCHES=patches;
+  }catch(e){$('#out').innerHTML=`<div class="warn err">No pude cargar los datos base: ${esc(e.message)}. Recarga en un rato.</div>`;return}
+  if(S.hero&&!HMAP[S.hero]) S.hero=null;
+  [...S.foes].forEach(f=>{if(!HMAP[f])S.foes.delete(f)});
+  buildSince();
+  draw();
+}
+
+function buildSince(){
+  const now=Date.now()/1000, day=86400, opts=[];
+  const isGame=t=>/update|^\s*\d{2}-\d{2}-\d{4}\s*$/i.test(t)&&!/minor/i.test(t);
+  const isAny=t=>/update|^\s*\d{2}-\d{2}-\d{4}\s*$/i.test(t);
+  const major=PATCHES.find(p=>isGame(p.title)), any=PATCHES.find(p=>isAny(p.title));
+  const ts=p=>Math.floor(Date.parse(p.pub_date)/1000);
+  const fd=t=>new Date(t*1000).toLocaleDateString('es-ES',{day:'numeric',month:'short'});
+  if(major) opts.push([ts(major),`el último parche de juego (${fd(ts(major))})`]);
+  if(any&&any!==major&&ts(any)>(major?ts(major):0)) opts.push([ts(any),`el último parche menor (${fd(ts(any))})`]);
+  opts.push([Math.floor(now-7*day),'hace 7 días'],[Math.floor(now-14*day),'hace 14 días'],[Math.floor(now-30*day),'hace 30 días']);
+  $('#since').innerHTML=opts.map(([v,t])=>`<option value="${v}">${esc(t)}</option>`).join('');
+  S.since=opts[0][0];
+  const p=major||any;
+  $('#patch').innerHTML=p?`Último parche de juego: <a href="${esc(p.link)}" target="_blank" rel="noopener">${esc(clean(p.title))}</a> · ${fd(ts(p))}. Todo lo de abajo se calcula solo con partidas posteriores.`:'No pude leer la lista de parches: uso los últimos 7 días.';
+  if(any&&major&&ts(any)>ts(major)) $('#patch').innerHTML+=` <span class="mute">(Hubo un parche menor el ${fd(ts(any))}: elígelo arriba si cambió algo de tu héroe.)</span>`;
+}
+
+function drawHeroes(){
+  const c=S.tab==='counter';
+  $('#pickTitle').textContent=c?(S.hero?'Su equipo':'Tu héroe'):'Tu héroe';
+  $('#pickHelp').textContent=c?(S.hero?`Juegas ${HMAP[S.hero].name} (borde dorado). Toca hasta 6 rivales; para cambiar tu héroe, usa el botón de abajo.`:'Primero elige con quién juegas.'):'Elige héroe y verás su build del meta desde el último parche.';
+  $('#heroes').innerHTML=HEROES.map(h=>{
+    let cls='h'; if(h.id===S.hero)cls+=' me'; if(c&&S.foes.has(h.id))cls+=' foe';
+    if(c&&S.hero&&h.id!==S.hero&&!S.foes.has(h.id)&&S.foes.size>=6)cls+=' dim';
+    return `<div class="${cls}" data-id="${h.id}" title="${esc(h.name)}"><img src="${h.img}" alt="" loading="lazy"><small>${esc(h.name)}</small></div>`}).join('');
+  document.querySelectorAll('#heroes .h').forEach(el=>el.onclick=()=>pickHero(+el.dataset.id));
+  const f=$('#foes');
+  if(c&&S.hero){
+    f.innerHTML=`<button id="chg">Cambiar mi héroe</button>`+(S.foes.size?` <button id="clr">Quitar rivales</button>`:'');
+    $('#chg').onclick=()=>{S.hero=null;store.set('hero',null);draw()};
+    if($('#clr')) $('#clr').onclick=()=>{S.foes.clear();store.set('foes',[]);draw()};
+  } else f.innerHTML='';
+}
+function pickHero(id){
+  if(S.tab==='counter'&&S.hero){
+    if(id===S.hero) return;
+    if(S.foes.has(id)) S.foes.delete(id); else if(S.foes.size<6) S.foes.add(id); else return;
+    store.set('foes',[...S.foes]);
+  } else {S.hero=id;store.set('hero',id);S.foes.delete(id);store.set('foes',[...S.foes])}
+  draw();
+}
+function draw(){
+  document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===S.tab));
+  drawHeroes(); run();
+}
+let runId=0;
+function run(){
+  const id=++runId, out=$('#out');
+  if(!S.hero){out.innerHTML='';return}
+  if(S.tab==='counter'&&!S.foes.size){out.innerHTML='<div class="panel"><div class="sub">Marca a los rivales en la rejilla de arriba (hasta 6).</div></div>';return}
+  out.innerHTML='<div class="panel"><div class="load">Consultando partidas desde el parche…</div></div>';
+  (S.tab==='build'?buildTab():counterTab()).then(html=>{if(id===runId){out.innerHTML=html;wire()}})
+    .catch(e=>{if(id===runId) out.innerHTML=`<div class="warn err">Falló la consulta: ${esc(e.message)}. Prueba otra ventana de fechas o recarga.</div>`});
+}
+function wire(){document.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>{navigator.clipboard?.writeText(b.dataset.copy);b.textContent='Copiado';setTimeout(()=>b.textContent='Copiar ID',1200)})}
+
+function itemCard(it,right,extra=''){
+  return `<div class="it ${it.slot||''}"><img src="${it.img}" alt="" loading="lazy"><div><div class="n">${esc(it.name)}${extra}</div>${right.sub||''}</div><div class="s ${right.cls||''}">${right.big}</div></div>`;
+}
+
+async function buildTab(){
+  const H=S.hero, f=filt();
+  const [hs,its,bs]=await Promise.all([
+    get(`/v1/analytics/hero-stats?${f}`),
+    get(`/v1/analytics/item-stats?hero_id=${H}&${f}`),
+    get(`/v1/analytics/hero-build-stats?hero_ids=${H}&${f}&min_matches=30`).catch(()=>[])
+  ]);
+  const me=hs.find(x=>x.hero_id===H);
+  if(!me||me.matches<50) return `<div class="warn">Casi no hay partidas de ${esc(HMAP[H].name)} con estos filtros (${me?me.matches:0}). Baja el rango o amplía las fechas.</div>`;
+  const N=me.matches, hwr=me.wins/N;
+  let html=`<div class="panel"><h2>${esc(HMAP[H].name)} · ${pct(hwr)} de victorias en ${N.toLocaleString('es-ES')} partidas</h2>`;
+  if(N<1500) html+=`<div class="warn">Pocas partidas todavía: los porcentajes se mueven mucho. Amplía fechas o baja el rango si algo no te cuadra.</div>`;
+
+  // Builds publicadas que mejor rinden
+  const minB=Math.max(60,Math.round(N*0.005));
+  const top=bs.filter(b=>b.hero_build_id&&b.matches>=minB).map(b=>({...b,lb:wilson(b.wins,b.matches)})).sort((a,b)=>b.lb-a.lb).slice(0,3);
+  html+=`<h3>Builds publicadas que más ganan</h3>`;
+  if(!top.length) html+=`<div class="sub">Ninguna build publicada tiene aún partidas suficientes con estos filtros.</div>`;
+  const det=await Promise.all(top.map(b=>get(`/v1/builds?build_id=${b.hero_build_id}&only_latest=true`).then(r=>r[0]?.hero_build).catch(()=>null)));
+  top.forEach((b,i)=>{
+    const d=det[i]; const wr=b.wins/b.matches;
+    html+=`<div class="build"><div class="t"><b>${esc(d?.name||('Build '+b.hero_build_id))}</b>
+      <span><span class="${wr>=hwr?'pos':'neg'}">${pct(wr)}</span> <span class="mute">en ${b.matches.toLocaleString('es-ES')} partidas (${sgn(wr-hwr)} sobre la media)</span>
+      <button class="copy" data-copy="${b.hero_build_id}">Copiar ID</button> <span class="mute">ID ${b.hero_build_id}</span></span></div>`;
+    (d?.details?.mod_categories||[]).forEach(c=>{
+      const ic=(c.mods||[]).map(m=>IMAP[m.ability_id]).filter(Boolean);
+      if(!ic.length) return;
+      html+=`<div class="cat"><div class="cn">${esc(c.name)}${c.optional?' · opcional':''}</div><div class="icons">${ic.map(x=>`<img class="${x.slot}" src="${x.img}" title="${esc(x.name)} (${x.cost})" alt="${esc(x.name)}" loading="lazy">`).join('')}</div></div>`;
+    });
+    html+=`</div>`;
+  });
+
+  // Objetos por coste
+  const rows=its.map(r=>{const it=IMAP[r.item_id];if(!it||!r.matches)return null;
+    const wr=r.wins/r.matches, pick=r.matches/N, d=(wr-hwr)*r.matches/(r.matches+300);
+    return {it,wr,pick,d,min:Math.round((r.avg_buy_time_s||0)/60)}}).filter(x=>x&&x.pick>=0.03);
+  html+=`<h3>Qué compran y cómo rinde, por coste</h3><div class="sub" style="margin-bottom:8px">Ordenado por ventaja sobre la media del héroe. «Núcleo» = lo compra más de un tercio de los jugadores.</div>`;
+  [1,2,3,4,5].forEach(t=>{
+    const L=rows.filter(r=>r.it.tier===t).sort((a,b)=>b.d-a.d).slice(0,6);
+    if(!L.length) return;
+    html+=`<div class="sub" style="margin:10px 0 6px"><b>${L[0].it.cost?L[0].it.cost.toLocaleString('es-ES')+' almas':'Nivel '+t}</b></div><div class="items">`+
+      L.map(r=>itemCard(r.it,{big:sgn(r.wr-hwr),cls:r.wr>=hwr?'pos':'neg',sub:`<div class="m">${pct(r.pick)} lo compran · min ${r.min}</div>`},r.pick>=0.34?'<span class="tag">NÚCLEO</span>':'')).join('')+`</div>`;
+  });
+  return html+'</div>';
+}
+
+async function counterTab(){
+  const H=S.hero, f=filt(), foes=[...S.foes];
+  const [its,cs]=await Promise.all([
+    get(`/v1/analytics/item-stats?hero_id=${H}&bucket=enemy_hero&${f}&min_matches=10`),
+    get(`/v1/analytics/hero-counter-stats?${f}&same_lane_filter=false&min_matches=10`)
+  ]);
+  // Rendimiento del héroe contra cada rival y en general
+  let W=0,M=0; const vs={};
+  cs.filter(r=>r.hero_id===H).forEach(r=>{W+=r.wins;M+=r.matches_played;vs[r.enemy_hero_id]={w:r.wins,m:r.matches_played}});
+  if(!M) return `<div class="warn">No hay partidas de ${esc(HMAP[H].name)} con estos filtros. Baja el rango o amplía las fechas.</div>`;
+  const hwr=W/M;
+  // Media de cada objeto (sumando todos los rivales) y celda objeto×rival
+  const base={}, cell={};
+  its.forEach(r=>{const b=base[r.item_id]||(base[r.item_id]={w:0,m:0});b.w+=r.wins;b.m+=r.matches;(cell[r.item_id]||(cell[r.item_id]={}))[r.bucket]={w:r.wins,m:r.matches}});
+  const K=150, res=[];
+  for(const id in cell){
+    const it=IMAP[id]; if(!it||base[id].m<200) continue;
+    const bwr=base[id].w/base[id].m; let score=0,n=0; const why=[];
+    foes.forEach(e=>{const c=cell[id][e], v=vs[e]; if(!c||!v||c.m<15) return;
+      const d=((c.w/c.m)-bwr)-((v.w/v.m)-hwr), sd=d*c.m/(c.m+K);
+      score+=sd;n+=c.m;why.push({e,sd});});
+    if(why.length) res.push({it,score,n,why:why.sort((a,b)=>Math.abs(b.sd)-Math.abs(a.sd))});
+  }
+  const fn=e=>HMAP[e]?.name||e;
+  let html=`<div class="panel"><h2>${esc(HMAP[H].name)} contra ${foes.map(e=>esc(fn(e))).join(', ')}</h2><div class="row">`+
+    foes.map(e=>{const v=vs[e];if(!v)return `<span class="chip"><img src="${HMAP[e].img}" alt="">${esc(fn(e))} <span class="mute">sin datos</span></span>`;
+      const d=v.w/v.m-hwr;return `<span class="chip"><img src="${HMAP[e].img}" alt="">${esc(fn(e))} <b class="${d>=0?'pos':'neg'}">${sgn(d)}</b></span>`}).join('')+
+    `</div><div class="sub" style="margin-top:6px">Cuánto ganas contra cada uno respecto a tu media (${pct(hwr)}).</div>`;
+  const chip=w=>`<span class="${w.sd>=0?'pos':'neg'}">vs ${esc(fn(w.e))} ${sgn(w.sd)}</span>`;
+  const good=res.filter(r=>r.score>0.004).sort((a,b)=>b.score-a.score).slice(0,10);
+  const bad=res.filter(r=>r.score<-0.004).sort((a,b)=>a.score-b.score).slice(0,8);
+  const card=r=>itemCard(r.it,{big:sgn(r.score),cls:r.score>=0?'pos':'neg',sub:`<div class="m">${r.it.cost?r.it.cost.toLocaleString('es-ES')+' almas':''}</div><div class="why">${r.why.slice(0,4).map(chip).join('')}</div>`});
+  html+=`<div class="cols"><div><h3 class="pos">Cómpralo</h3>${good.length?'<div class="items" style="grid-template-columns:1fr">'+good.map(card).join('')+'</div>':'<div class="sub">Nada destaca claramente: sigue la build del meta.</div>'}</div>
+    <div><h3 class="neg">Evítalo esta partida</h3>${bad.length?'<div class="items" style="grid-template-columns:1fr">'+bad.map(card).join('')+'</div>':'<div class="sub">Nada rinde especialmente mal contra este equipo.</div>'}</div></div>
+    <div class="sub" style="margin-top:10px">La cifra es cuántos puntos de victoria gana ese objeto contra este equipo respecto a lo que gana normalmente, ya descontado lo bien o mal que se te da cada emparejamiento. Con pocas partidas la cifra se encoge hacia cero, así que lo que sale aquí tiene base.</div></div>`;
+  return html;
+}
+init();
+</script>
+</body>
+</html>
