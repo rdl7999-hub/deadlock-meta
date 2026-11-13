@@ -168,11 +168,16 @@ function buildSince(){
   if(major) opts.push([ts(major),`el último parche de juego (${fd(ts(major))})`]);
   if(any&&any!==major&&ts(any)>(major?ts(major):0)) opts.push([ts(any),`el último parche menor (${fd(ts(any))})`]);
   opts.push([Math.floor(now-7*day),'hace 7 días'],[Math.floor(now-14*day),'hace 14 días'],[Math.floor(now-30*day),'hace 30 días']);
+  // Por defecto: el parche más reciente (también los menores), salvo que tenga menos de 3 días.
+  const recent=any?ts(any):0;
+  if(recent&&recent<=now-3*day&&opts.length&&opts[0][0]!==recent) opts.unshift(opts.splice(opts.findIndex(o=>o[0]===recent),1)[0]);
+  if(!recent||recent>now-3*day) opts.unshift(opts.splice(opts.findIndex(o=>o[1]==='hace 7 días'),1)[0]);
   $('#since').innerHTML=opts.map(([v,t])=>`<option value="${v}">${esc(t)}</option>`).join('');
   S.since=opts[0][0];
   const p=major||any;
   $('#patch').innerHTML=p?`Último parche de juego: <a href="${esc(p.link)}" target="_blank" rel="noopener">${esc(clean(p.title))}</a> · ${fd(ts(p))}. Todo lo de abajo se calcula solo con partidas posteriores.`:'No pude leer la lista de parches: uso los últimos 7 días.';
-  if(any&&major&&ts(any)>ts(major)) $('#patch').innerHTML+=` <span class="mute">(Hubo un parche menor el ${fd(ts(any))}: elígelo arriba si cambió algo de tu héroe.)</span>`;
+  if(any&&major&&ts(any)>ts(major)) $('#patch').innerHTML+=` <span class="mute">Después hubo un parche menor (${fd(ts(any))}).</span>`;
+  $('#patch').innerHTML+=` <b>Por defecto se usan solo los datos más recientes</b>; lo que funcionaba antes y ya no, lo marca «Qué ha cambiado».`;
 }
 
 function drawHeroes(){
@@ -220,16 +225,34 @@ function itemCard(it,right,extra=''){
 
 async function buildTab(){
   const H=S.hero, f=filt();
-  const [hs,its,bs]=await Promise.all([
+  const D=86400, now=Math.floor(Date.now()/3600000)*3600, rk=+S.badge>0?'&min_average_badge='+S.badge:'';
+  const wNow=`min_unix_timestamp=${now-7*D}${rk}`, wOld=`min_unix_timestamp=${now-28*D}&max_unix_timestamp=${now-7*D}${rk}`;
+  const [hs,its,bs,trend]=await Promise.all([
     get(`/v1/analytics/hero-stats?${f}`),
     get(`/v1/analytics/item-stats?hero_id=${H}&${f}`),
-    get(`/v1/analytics/hero-build-stats?hero_ids=${H}&${f}&min_matches=30`).catch(()=>[])
+    get(`/v1/analytics/hero-build-stats?hero_ids=${H}&${f}&min_matches=30`).catch(()=>[]),
+    Promise.all([get(`/v1/analytics/hero-stats?${wNow}`),get(`/v1/analytics/hero-stats?${wOld}`),
+      get(`/v1/analytics/item-stats?hero_id=${H}&${wNow}`),get(`/v1/analytics/item-stats?hero_id=${H}&${wOld}`)]).catch(()=>null)
   ]);
+  const TR=trendOf(H,trend);
   const me=hs.find(x=>x.hero_id===H);
   if(!me||me.matches<50) return `<div class="warn">Casi no hay partidas de ${esc(HMAP[H].name)} con estos filtros (${me?me.matches:0}). Baja el rango o amplía las fechas.</div>`;
   const N=me.matches, hwr=me.wins/N;
   let html=`<div class="panel"><h2>${esc(HMAP[H].name)} · ${pct(hwr)} de victorias en ${N.toLocaleString('es-ES')} partidas</h2>`;
   if(N<1500) html+=`<div class="warn">Pocas partidas todavía: los porcentajes se mueven mucho. Amplía fechas o baja el rango si algo no te cuadra.</div>`;
+
+  // Qué ha cambiado: últimos 7 días frente a las 3 semanas anteriores
+  html+=`<h3>Qué ha cambiado: últimos 7 días frente a las 3 semanas anteriores</h3>`;
+  if(!TR) html+=`<div class="sub">No pude comparar semanas ahora mismo.</div>`;
+  else if(TR.thin) html+=`<div class="sub">Pocas partidas de este héroe para comparar semanas con este rango; baja el rango.</div>`;
+  else{
+    const down=TR.list.filter(t=>t.ch<=-0.015).sort((a,b)=>a.ch-b.ch).slice(0,6);
+    const up=TR.list.filter(t=>t.ch>=0.015).sort((a,b)=>b.ch-a.ch).slice(0,6);
+    const tc=t=>itemCard(t.it,{big:sgn(t.ch),cls:t.ch>=0?'pos':'neg',sub:`<div class="m">antes ${sgn(t.dOld)} → ahora ${sgn(t.dNow)} · ${pct(t.pNow)} lo compran</div>`});
+    html+=`<div class="cols"><div><div class="sub neg" style="margin-bottom:6px"><b>Ya no funciona como antes</b></div>${down.length?'<div class="items" style="grid-template-columns:1fr">'+down.map(tc).join('')+'</div>':'<div class="sub">Nada ha caído de forma clara.</div>'}</div>
+      <div><div class="sub pos" style="margin-bottom:6px"><b>Ahora rinde más</b></div>${up.length?'<div class="items" style="grid-template-columns:1fr">'+up.map(tc).join('')+'</div>':'<div class="sub">Nada ha subido de forma clara.</div>'}</div></div>
+      <div class="sub" style="margin-top:6px">«antes» y «ahora» = ventaja del objeto sobre la media del héroe en cada periodo. La cifra grande es cuánto ha cambiado (encogida si hay pocas partidas).</div>`;
+  }
 
   // Builds publicadas que mejor rinden
   const minB=Math.max(60,Math.round(N*0.005));
@@ -259,9 +282,26 @@ async function buildTab(){
     const L=rows.filter(r=>r.it.tier===t).sort((a,b)=>b.d-a.d).slice(0,6);
     if(!L.length) return;
     html+=`<div class="sub" style="margin:10px 0 6px"><b>${L[0].it.cost?L[0].it.cost.toLocaleString('es-ES')+' almas':'Nivel '+t}</b></div><div class="items">`+
-      L.map(r=>itemCard(r.it,{big:sgn(r.wr-hwr),cls:r.wr>=hwr?'pos':'neg',sub:`<div class="m">${pct(r.pick)} lo compran · min ${r.min}</div>`},r.pick>=0.34?'<span class="tag">NÚCLEO</span>':'')).join('')+`</div>`;
+      L.map(r=>{const t=TR&&!TR.thin&&TR.by[r.it.id];
+        const arrow=t&&Math.abs(t.ch)>=0.015?` · <span class="${t.ch>0?'pos':'neg'}">${t.ch>0?'▲ subiendo':'▼ cayendo'} ${sgn(t.ch)} esta semana</span>`:'';
+        return itemCard(r.it,{big:sgn(r.wr-hwr),cls:r.wr>=hwr?'pos':'neg',sub:`<div class="m">${pct(r.pick)} lo compran · min ${r.min}${arrow}</div>`},r.pick>=0.34?'<span class="tag">NÚCLEO</span>':'')}).join('')+`</div>`;
   });
   return html+'</div>';
+}
+
+function trendOf(H,t){
+  if(!t) return null;
+  const [hN,hO,iN,iO]=t, a=hN.find(x=>x.hero_id===H), b=hO.find(x=>x.hero_id===H);
+  if(!a||!b||a.matches<800||b.matches<800) return {thin:true};
+  const wa=a.wins/a.matches, wb=b.wins/b.matches, old={}, by={}, list=[];
+  iO.forEach(r=>old[r.item_id]=r);
+  iN.forEach(r=>{const it=IMAP[r.item_id], o=old[r.item_id]; if(!it||!o) return;
+    const pNow=r.matches/a.matches, pOld=o.matches/b.matches; if(pNow<0.02&&pOld<0.03) return;
+    const dNow=r.wins/r.matches-wa, dOld=o.wins/o.matches-wb;
+    const k=r.matches*o.matches/(r.matches+o.matches); // tamaño efectivo de la comparación
+    const ch=(dNow-dOld)*k/(k+250);
+    const x={it,dNow,dOld,pNow,pOld,ch}; by[it.id]=x; list.push(x);});
+  return {list,by};
 }
 
 async function counterTab(){
