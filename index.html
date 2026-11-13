@@ -77,6 +77,33 @@ button{cursor:pointer}
 .who{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;margin-left:6px}.who img{width:22px;height:22px;border-radius:50%}
 @media (max-width:900px){.cols3{grid-template-columns:1fr}}
 footer{color:var(--mute);font-size:12px;margin:20px 0 30px}
+.tabs{flex-wrap:wrap}
+.tip{position:fixed;pointer-events:none;background:#0b0c0e;border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:12px;line-height:1.5;z-index:20;display:none;max-width:280px}
+.sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.lg{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--mute);margin:4px 0 6px}
+.lg i{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.viz{max-width:720px}.viz svg{width:100%;height:auto;display:block}
+.ax{fill:var(--mute);font-size:11px}.gl{stroke:var(--line);stroke-width:1}
+.hx .cx{opacity:0}.hx:hover .cx{opacity:1}
+.ntw{overflow-x:auto}
+table.nt{border-collapse:collapse;font-size:12px;width:100%;margin-top:8px}
+table.nt th,table.nt td{padding:4px 6px;border-top:1px solid var(--line);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+table.nt th:first-child,table.nt td:first-child{text-align:left}table.nt th{color:var(--mute);font-weight:600}
+.br{display:grid;grid-template-columns:190px 1fr;gap:10px;align-items:center;padding:5px 0;border-top:1px solid var(--line)}
+.bl{font-size:13px}
+.bw{display:flex;align-items:center;gap:6px;margin:2px 0;cursor:default}
+.bx{display:block;height:8px;border-radius:0 4px 4px 0;min-width:2px}
+.bv{font-size:11px;color:var(--mute);font-variant-numeric:tabular-nums}
+.tips{margin:6px 0 0;padding-left:20px;font-size:14px}.tips li{margin:5px 0}
+.abw{overflow-x:auto;padding-bottom:4px}
+.ab{display:grid;gap:3px;width:max-content;align-items:center}
+.ab .hd{font-size:11px;color:var(--mute);text-align:center;line-height:1.2}.ab .hd span{font-size:10px}
+.ab .an{display:flex;align-items:center;gap:6px;font-size:13px;padding-right:6px}.ab .an img{width:26px;height:26px;border-radius:5px;flex:none}
+.ab .c{width:28px;height:26px;border-radius:5px;background:var(--panel2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+.ab .c.on{background:var(--acc);color:#1a1405}.ab .c.un{background:#4a4f57;color:var(--text)}
+.acc input{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font:inherit;font-size:14px;width:230px;max-width:100%}
+.mapw{max-width:600px;margin:6px auto}
+@media (max-width:760px){.br{grid-template-columns:1fr;gap:2px}}
 </style>
 </head>
 <body>
@@ -100,6 +127,7 @@ footer{color:var(--mute);font-size:12px;margin:20px 0 30px}
 <div class="tabs">
   <button data-tab="build">Build del meta</button>
   <button data-tab="counter">Contra su equipo</button>
+  <button data-tab="farm">Farmeo y mapa</button>
 </div>
 
 <div class="panel">
@@ -147,7 +175,7 @@ async function get(path){
   return p;
 }
 
-const S={tab:store.get('tab','build'),hero:store.get('hero',null),foes:new Set(store.get('foes',[])),allies:new Set(store.get('allies',[])),tags:store.get('tags',{}),mode:store.get('mode','jug'),side:'foe',badge:store.get('badge','80'),since:null};
+const S={tab:store.get('tab','build'),hero:store.get('hero',null),foes:new Set(store.get('foes',[])),allies:new Set(store.get('allies',[])),tags:store.get('tags',{}),mode:store.get('mode','jug'),side:'foe',badge:store.get('badge','80'),since:null,fph:store.get('fph','media'),flane:store.get('flane',1),acc:store.get('acc',null)};
 let HEROES=[],HMAP={},IMAP={},PATCHES=[];
 
 function filt(){
@@ -169,10 +197,10 @@ async function init(){
       get('/v1/assets/items/by-type/upgrade?language=spanish'),
       get('/v2/patches').catch(()=>[])
     ]);
-    HEROES=heroes.filter(h=>h.player_selectable!==false&&!h.disabled&&!h.in_development).map(h=>({id:h.id,name:clean(h.name),img:h.images.icon_image_small_webp||h.images.icon_image_small}))
+    HEROES=heroes.filter(h=>h.player_selectable!==false&&!h.disabled&&!h.in_development).map(h=>({id:h.id,name:clean(h.name),img:h.images.icon_image_small_webp||h.images.icon_image_small,sig:['signature1','signature2','signature3','signature4'].map(k=>h.items&&h.items[k]).filter(Boolean)}))
       .sort((a,b)=>a.name.localeCompare(b.name,'es'));
     HEROES.forEach(h=>HMAP[h.id]=h);
-    items.forEach(i=>IMAP[i.id]={id:i.id,name:clean(i.name),slot:i.item_slot_type,tier:i.item_tier,cost:i.cost,img:i.shop_image_webp||i.shop_image||i.image_webp,active:i.is_active_item,cats:cats(i)});
+    items.forEach(i=>IMAP[i.id]={id:i.id,name:clean(i.name),slot:i.item_slot_type,tier:i.item_tier,cost:i.cost,img:i.shop_image_webp||i.shop_image||i.image_webp,active:i.is_active_item,cats:cats(i),sus:sus(i)});
     PATCHES=patches;
   }catch(e){$('#out').innerHTML=`<div class="warn err">No pude cargar los datos base: ${esc(e.message)}. Recarga en un rato.</div>`;return}
   if(S.hero&&!HMAP[S.hero]) S.hero=null;
@@ -213,7 +241,7 @@ function drawHeroes(){
     $('#pickHelp').textContent='Elige a qué equipo añades y toca héroes (hasta 6 por equipo). Dorado = el tuyo, rojo = el suyo.';
   } else {
     $('#pickTitle').textContent=c?(S.hero?'Su equipo':'Tu héroe'):'Tu héroe';
-    $('#pickHelp').textContent=c?(S.hero?`Juegas ${HMAP[S.hero].name} (borde dorado). Toca hasta 6 rivales; para cambiar tu héroe, usa el botón de abajo.`:'Primero elige con quién juegas.'):'Elige héroe y verás su build del meta desde el último parche.';
+    $('#pickHelp').textContent=c?(S.hero?`Juegas ${HMAP[S.hero].name} (borde dorado). Toca hasta 6 rivales; para cambiar tu héroe, usa el botón de abajo.`:'Primero elige con quién juegas.'):(S.tab==='farm'?'Elige héroe: verás a qué ritmo farmean los mejores, de dónde sacan las almas, dónde muere y una ruta de campamentos segura.':'Elige héroe y verás su build del meta desde el último parche.');
   }
   $('#heroes').innerHTML=HEROES.map(h=>{
     let cls='h';
@@ -289,13 +317,14 @@ function run(){
     if(!S.hero){out.innerHTML='';return}
     if(S.tab==='counter'&&!S.foes.size){out.innerHTML='<div class="panel"><div class="sub">Marca a los rivales en la rejilla de arriba (hasta 6).</div></div>';return}
   }
-  out.innerHTML=`<div class="panel"><div class="load">${co?`Consultando partidas de ${S.allies.size} héroes por fases (puede tardar hasta medio minuto)…`:'Consultando partidas desde el parche…'}</div></div>`;
-  (S.tab==='build'?buildTab():co?coachTab():counterTab()).then(html=>{if(id===runId){out.innerHTML=html;wire()}})
+  out.innerHTML=`<div class="panel"><div class="load">${co?`Consultando partidas de ${S.allies.size} héroes por fases (puede tardar hasta medio minuto)…`:S.tab==='farm'?'Consultando curvas de almas y el mapa de muertes (unos 10-15 s)…':'Consultando partidas desde el parche…'}</div></div>`;
+  (S.tab==='build'?buildTab():S.tab==='farm'?farmTab():co?coachTab():counterTab()).then(html=>{if(id===runId){out.innerHTML=html;wire()}})
     .catch(e=>{if(id===runId) out.innerHTML=`<div class="warn err">Falló la consulta: ${esc(e.message)}. Prueba otra ventana de fechas o recarga.</div>`});
 }
 function wire(){
   document.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>{navigator.clipboard?.writeText(b.dataset.copy);b.textContent='Copiado';setTimeout(()=>b.textContent='Copiar ID',1200)});
   document.querySelectorAll('[data-share]').forEach(b=>b.onclick=()=>{const u=shareURL();history.replaceState(null,'',u);navigator.clipboard?.writeText(u);b.textContent='Enlace copiado';setTimeout(()=>b.textContent='Copiar enlace del plan',1500)});
+  wireTips();wireFarm();
 }
 
 function itemCard(it,right,extra=''){
@@ -306,12 +335,13 @@ async function buildTab(){
   const H=S.hero, f=filt();
   const D=86400, now=Math.floor(Date.now()/3600000)*3600, rk=+S.badge>0?'&min_average_badge='+S.badge:'';
   const wNow=`min_unix_timestamp=${now-7*D}${rk}`, wOld=`min_unix_timestamp=${now-28*D}&max_unix_timestamp=${now-7*D}${rk}`;
-  const [hs,its,bs,trend]=await Promise.all([
+  const [hs,its,bs,trend,abil]=await Promise.all([
     get(`/v1/analytics/hero-stats?${f}`),
     get(`/v1/analytics/item-stats?hero_id=${H}&${f}`),
     get(`/v1/analytics/hero-build-stats?hero_ids=${H}&${f}&min_matches=30`).catch(()=>[]),
     Promise.all([get(`/v1/analytics/hero-stats?${wNow}`),get(`/v1/analytics/hero-stats?${wOld}`),
-      get(`/v1/analytics/item-stats?hero_id=${H}&${wNow}`),get(`/v1/analytics/item-stats?hero_id=${H}&${wOld}`)]).catch(()=>null)
+      get(`/v1/analytics/item-stats?hero_id=${H}&${wNow}`),get(`/v1/analytics/item-stats?hero_id=${H}&${wOld}`)]).catch(()=>null),
+    Promise.all([get(`/v1/analytics/ability-order-tree?hero_id=${H}&${f}&min_matches=40`),get(`/v1/analytics/ability-max-first-stats?hero_id=${H}&${f}`),get(`/v1/assets/items/by-hero-id/${H}?language=spanish`)]).catch(()=>null)
   ]);
   const TR=trendOf(H,trend);
   const me=hs.find(x=>x.hero_id===H);
@@ -352,6 +382,8 @@ async function buildTab(){
     html+=`</div>`;
   });
 
+  html+=`<h3>Orden de habilidades que más gana</h3>`+abilitySection(H,hwr,abil);
+
   // Objetos por coste
   const rows=its.map(r=>{const it=IMAP[r.item_id];if(!it||!r.matches)return null;
     const wr=r.wins/r.matches, pick=r.matches/N, d=(wr-hwr)*r.matches/(r.matches+300);
@@ -365,6 +397,10 @@ async function buildTab(){
         const arrow=t&&Math.abs(t.ch)>=0.015?` · <span class="${t.ch>0?'pos':'neg'}">${t.ch>0?'▲ subiendo':'▼ cayendo'} ${sgn(t.ch)} esta semana</span>`:'';
         return itemCard(r.it,{big:sgn(r.wr-hwr),cls:r.wr>=hwr?'pos':'neg',sub:`<div class="m">${pct(r.pick)} lo compran · min ${r.min}${arrow}</div>`},r.pick>=0.34?'<span class="tag">NÚCLEO</span>':'')}).join('')+`</div>`;
   });
+  // Aguantar: con qué se cura
+  const susR=rows.filter(r=>r.it.sus).sort((a,b)=>b.d-a.d).slice(0,6);
+  html+=`<h3>Aguantar: con qué se cura este héroe</h3><div class="sub" style="margin-bottom:8px">Robo de vida, curaciones y regeneración que compra quien juega ${esc(HMAP[H].name)}, ordenados por lo que le suman. Si el rival compra anticuración rinden menos: entonces mezcla con vida y resistencias.</div>`+
+    (susR.length?'<div class="items">'+susR.map(r=>itemCard(r.it,{big:sgn(r.wr-hwr),cls:r.wr>=hwr?'pos':'neg',sub:`<div class="m">${SUSN[r.it.sus]} · ${pct(r.pick)} lo compran · min ${r.min}</div>`})).join('')+'</div>':'<div class="sub">Casi nadie compra curación con este héroe con estos filtros.</div>');
   return html+'</div>';
 }
 
@@ -465,10 +501,11 @@ function foeChips(list){return `<div class="row">`+list.map(e=>{const t=S.tags[e
 const NOTE=`<div class="sub" style="margin-top:12px">La cifra son puntos de victoria que gana ese objeto, comprado en esa fase, contra esos rivales, respecto a lo que gana normalmente con ese héroe en esa misma fase. <b>Carril</b>: solo partidas en las que ese rival iba en la misma línea (y la pareja exacta, si hay partidas). <b>Va fed</b>: ese rival pesa el doble y se suma lo que funcionó en partidas en las que su héroe acabó con 35.000+ almas en menos de 35 minutos. Las etiquetas rojas responden a lo que marcaste que hacen: suben puestos aunque la cifra sea algo menor, pero la cifra es siempre el dato real. Con pocas partidas todo se encoge hacia cero.</div>`;
 async function counterTab(){
   const H=S.hero, foes=[...S.foes], L=foes.filter(e=>S.tags[e]?.mine), N=needs();
-  const P=await plan(H,L);
+  const [P,LS]=await Promise.all([plan(H,L),L.length?laneSouls(H,L).catch(()=>''):'']);
   let html=`<div class="panel"><div class="t2"><h2>${esc(HMAP[H].name)} contra su equipo</h2><button class="copy" data-share>Copiar enlace del plan</button></div>${foeChips(foes)}`;
   if(!L.length) html+=`<div class="warn">Marca quién va en tu carril (arriba, «En mi carril») para afinar la fase de carril. Mientras tanto la calculo contra el equipo entero.</div>`;
   else if(P.carril.n<300) html+=`<div class="warn">Pocas partidas de ${esc(HMAP[H].name)} contra ${L.map(fn).join(' y ')} en la misma línea: la fase de carril es orientativa.</div>`;
+  html+=LS||'';
   const ks=Object.keys(N);
   if(ks.length){
     html+=`<h3>Respuesta a lo que hacen</h3>`;
@@ -503,6 +540,212 @@ async function coachTab(){
   });
   return html+NOTE+'</div>';
 }
+// ---------- Aguantar, habilidades y almas de carril ----------
+function sus(i){
+  const v=k=>{const p=(i.properties||{})[k];const x=parseFloat(String(p&&typeof p==='object'?p.value:p));return isNaN(x)?0:x};
+  if(v('HealAmpReceivePenaltyPercent')<0) return null;
+  if(['AbilityLifestealPercentHero','AbilityLifestealPercentHeroPassive','BulletLifestealPercent','LifestrikeHealPercent','LifestealHealPercent','HealthStealPctHero','ActiveBonusLifesteal','ImbueAbilityLifesteal','HealOnKill','HealPercentPerHeadshot'].some(k=>v(k)>0)) return 'robo';
+  if(['HealPercentAmount','Regeneration','TotalHealthRegen','HealingPerCast','HealOnActivate','HealAmount','HealPerStack','HealAmpCastPercent','HealAmpRegenPercent','HealLifePercentOutOfCombat','ParrySuccessHealPercentage','HealOnVeil','HealFromHero','HealOnLevelHealAmount'].some(k=>v(k)>0)) return 'cura';
+  if(v('BonusHealthRegen')>0) return 'regen';
+  return null;
+}
+const SUSN={robo:'Robo de vida',cura:'Curación',regen:'Regeneración'};
+// Camino de habilidades: en cada paso, la mejora que más gana entre las que hace al menos 1 de cada 10.
+function abilitySection(H,hwr,abil){
+  if(!abil) return '<div class="sub">No pude leer el orden de habilidades ahora mismo.</div>';
+  const [tree,maxf,assets]=abil, A={};
+  (assets||[]).filter(a=>a.type==='ability').forEach(a=>A[a.id]={id:a.id,cn:a.class_name,name:clean(a.name),img:a.image_webp||a.image});
+  if(!tree||!tree.length) return '<div class="sub">Aún no hay partidas suficientes para el orden de habilidades con estos filtros.</div>';
+  const kids={};tree.forEach(n=>{const p=n.abilities.slice(0,-1).join(',');(kids[p]||(kids[p]=[])).push(n)});
+  const sc=n=>(n.wins/n.matches-hwr)*n.matches/(n.matches+400), path=[];
+  let cur='',pm=(kids['']||[]).reduce((s,n)=>s+n.matches,0);
+  while(path.length<16){const ch=(kids[cur]||[]).filter(n=>n.matches>=Math.max(150,pm*0.1));if(!ch.length)break;
+    const b=ch.reduce((x,y)=>sc(y)>sc(x)?y:x);path.push(b);cur=b.abilities.join(',');pm=b.matches}
+  if(path.length<4) return '<div class="sub">Pocas partidas para trazar un orden fiable.</div>';
+  const ids=(HMAP[H].sig||[]).map(c=>Object.values(A).find(a=>a.cn===c)?.id).filter(Boolean);
+  path.forEach(n=>{const id=n.abilities.at(-1);if(!ids.includes(id))ids.push(id)});
+  const last=path.at(-1), n=path.length;
+  let h=`<div class="sub" style="margin-bottom:8px">Paso a paso, la mejora que más gana frente a las demás opciones de ese mismo paso (solo cuentan las que hace al menos 1 de cada 10 jugadores). ${n} pasos con datos; el orden completo lo siguen ${last.matches.toLocaleString('es-ES')} partidas. No doy un % del orden entero: a los últimos pasos solo llegan las partidas largas y saldría inflado.</div>`;
+  h+=`<div class="abw"><div class="ab" style="grid-template-columns:minmax(120px,170px) repeat(${n},28px)"><div></div>`+path.map((p,i)=>`<div class="hd">${i+1}<br><span>${Math.round(p.avg_upgrade_time_s/60)}′</span></div>`).join('');
+  ids.forEach(id=>{const a=A[id]||{name:'Habilidad',img:''};let k=0;
+    h+=`<div class="an">${a.img?`<img src="${a.img}" alt="">`:''}<span>${esc(a.name)}</span></div>`+path.map(p=>{if(p.abilities.at(-1)!==id)return '<div class="c"></div>';k++;
+      return k===1?'<div class="c un" title="Desbloquear">D</div>':`<div class="c on" title="Mejora ${k-1}">${k-1}</div>`}).join('')});
+  h+=`</div></div><div class="sub" style="margin-top:4px">D = desbloquear · 1-3 = mejoras · arriba, el paso y el minuto medio en que se hace.</div>`;
+  const tot=(maxf||[]).reduce((s,r)=>s+r.matches,0);
+  const mf=(maxf||[]).filter(r=>r.ability_id&&A[r.ability_id]&&r.matches>=Math.max(80,tot*0.05)).map(r=>({...r,wr:r.wins/r.matches,share:r.matches/tot,d:(r.wins/r.matches-hwr)*r.matches/(r.matches+400)}));
+  if(mf.length){const pop=mf.reduce((x,y)=>y.matches>x.matches?y:x), best=mf.reduce((x,y)=>y.d>x.d?y:x);
+    h+=`<div class="row" style="margin-top:8px">`+mf.sort((a,b)=>b.d-a.d).map(r=>`<span class="chip"><img src="${A[r.ability_id].img}" alt="" style="border-radius:4px">Al máximo primero ${esc(A[r.ability_id].name)}: <b class="${r.wr>=hwr?'pos':'neg'}">${pct(r.wr)}</b> <span class="mute">· lo hace el ${pct(r.share)}</span>${r===best?' <span class="tag">MEJOR</span>':''}${r===pop&&r!==best?' <span class="mute">(lo más visto)</span>':''}</span>`).join('')+`</div>`}
+  return h;
+}
+// Almas de la pareja de carril frente a la suya, contra los rivales marcados y en general.
+async function laneSouls(H,L){
+  const base=`/v1/analytics/lane-soul-curve?hero_ids=${H}&${filt()}&max_time_s=900`;
+  const [vs,all]=await Promise.all([get(`${base}&enemy_hero_ids=${L.join(',')}&group_by=enemy_hero_ids`),get(`${base}&group_by=hero_ids`)]);
+  const at=(rows,t)=>{let s=0,m=0;rows.forEach(r=>{const i=r.sample_times_s.indexOf(t);if(i<0)return;const k=r.sample_matches[i];s+=r.net_worth_diff[i]*k;m+=k});return m?{v:s/m,m}:null};
+  let rows=vs.filter(r=>L.every(e=>r.enemy_hero_ids.includes(e))), pair=L.length>1;
+  if(pair&&rows.reduce((s,r)=>s+r.matches_played,0)<60){rows=vs.filter(r=>L.some(e=>r.enemy_hero_ids.includes(e)));pair=false}
+  const T=[360,540,900], a=T.map(t=>at(rows,t)), b=T.map(t=>at(all,t));
+  if(!a[1]||a[1].m<40||!b[1]) return '';
+  const d9=a[1].v-b[1].v, d15=a[2]&&b[2]?a[2].v-b[2].v:d9, d=(0.4*d9+0.6*d15)*a[1].m/(a[1].m+100);
+  const f=x=>x?((x.v>=0?'+':'−')+Math.abs(Math.round(x.v)).toLocaleString('es-ES')):'—';
+  const v=d<=-250?{c:'neg',t:'Carril difícil',x:'Farmea seguro y asegura tus orbes; no fuerces peleas: pide ayuda o rota antes que regalar almas.'}
+    :d>=250?{c:'pos',t:'Carril favorable',x:'Presiona: niega sus orbes, pelea cuando tengas ventaja y empuja la oleada.'}
+    :{c:'',t:'Carril parejo',x:'Lo decide quién farmea mejor: último golpe y orbes.'};
+  return `<div class="need"><div><b class="${v.c}">${v.t}</b> <span class="mute">· almas de tu pareja de carril menos las de la suya${pair?'':' (partidas contra cualquiera de los dos)'}</span></div>
+    <div class="row" style="margin-top:6px"><span>min 6: <b>${f(a[0])}</b></span><span>min 9: <b>${f(a[1])}</b></span><span>min 15: <b>${f(a[2])}</b></span><span class="mute">· lo normal con ${esc(HMAP[H].name)}: ${f(b[0])} / ${f(b[1])} / ${f(b[2])} · ${a[1].m.toLocaleString('es-ES')} partidas</span></div>
+    <div class="sub" style="margin-top:4px">${v.x}${d9>-150&&d15<-400?' Ojo: empieza igualado y se tuerce hacia el minuto 15.':d9<150&&d15>400?' Empieza igualado y lo ganas hacia el minuto 15.':''}</div></div>`;
+}
+
+// ---------- Farmeo y mapa ----------
+const SCOL={r:'#3987e5',e:'#d95926',m:'#199e70'};
+const BADGE={0:'todos los rangos',70:'Emisario+',80:'Oráculo+',90:'Fantasma+',100:'Ascendente+',110:'Eternus+'};
+const FPH={carril:{n:'Carril',sub:'min 0-10',a:0,b:600,t0:0,t1:540},media:{n:'Media partida',sub:'min 10-25',a:600,b:1500,t0:540,t1:1500},final:{n:'Final',sub:'min 25+',a:1500,b:0,t0:1500,t1:2100}};
+const SRC=[
+  {n:'Oleadas',f:['gold_lane_creep_avg'],tip:'Último golpe a cada tropa y no dejes oleadas sin recoger al moverte.'},
+  {n:'Orbes asegurados',f:['gold_lane_creep_orbs_avg','gold_neutral_creep_orbs_avg','gold_player_orbs_avg','gold_boss_orb_avg'],tip:'Tras cada último golpe dispara al orbe de almas antes que el rival, y niega los suyos.'},
+  {n:'Campamentos',f:['gold_neutral_creep_avg'],tip:'Entra a la jungla entre oleada y oleada: abajo tienes la ruta más segura para tu héroe.'},
+  {n:'Bajas y asistencias',f:['gold_player_avg','gold_assists_avg','gold_ability_assassinate_avg'],tip:'Llega a las peleas de tu equipo: las asistencias también dan almas.'},
+  {n:'Objetivos y bonus',f:['gold_boss_avg','gold_team_bonus_avg'],tip:'Acompaña cuando tu equipo tira guardianes, santuarios o jefes: es dinero para todos.'},
+  {n:'Cajas y jarrones',f:['gold_breakable_avg','gold_treasure_avg'],tip:'Rompe las cajas y jarrones que te pillen de camino.'},
+  {n:'Perdidas al morir',f:['gold_death_loss_avg'],neg:1,tip:'Mueres más, o con más almas sin gastar: compra antes de arriesgar y mira el mapa de peligro.'}];
+const KV={weak:{n:'débil',v:1,r:8},medium:{n:'medio',v:2,r:10},strong:{n:'fuerte',v:3,r:12},vault:{n:'bóveda',v:2,r:9}};
+function cv(c,k,t){if(!c||!c.length)return null;if(!t)return 0;let b=null;c.forEach(p=>{if(p.game_time<=t&&(!b||p.game_time>b.game_time))b=p});return b?(b[k]||0):null}
+function gainOf(c,src,ph){let s=0;for(const k of src.f){const a=cv(c,k,ph.t0),b=cv(c,k,ph.t1);if(a==null||b==null)return null;s+=b-a}return s}
+const nf=v=>Math.round(v).toLocaleString('es-ES');
+
+async function farmTab(){
+  const H=S.hero, now=Math.floor(Date.now()/3600000)*3600, D=86400, ph=FPH[S.fph]||FPH.media;
+  const b=+S.badge, eb=b<100?100:b<110?110:null, rk=b>0?'&min_average_badge='+b:'';
+  const tw=`&min_game_time_s=${ph.a}`+(ph.b?`&max_game_time_s=${ph.b}`:''), kdT=Math.max(S.since,now-3*D), acc=S.acc, aT=now-30*D;
+  const C='/v1/analytics/player-performance-curve?resolution=0&hero_ids='+H;
+  const [cR,cE,map,kd,me]=await Promise.all([
+    get(`${C}&${filt()}`),
+    eb?get(`${C}&min_unix_timestamp=${S.since}&min_average_badge=${eb}`).catch(()=>null):null,
+    get('/v1/assets/map').catch(()=>null),
+    get(`/v1/analytics/kill-death-stats?hero_ids=${H}&min_unix_timestamp=${kdT}${rk}${tw}`).catch(()=>null),
+    acc?Promise.all([get(`${C}&account_ids=${acc.id}&min_unix_timestamp=${aT}`),get(`/v1/players/hero-stats?account_ids=${acc.id}&min_unix_timestamp=${aT}`),
+      get(`/v1/analytics/kill-death-stats?hero_ids=${H}&account_ids=${acc.id}&min_unix_timestamp=${aT}${tw}`).catch(()=>null)]).catch(()=>null):null
+  ]);
+  const mine=me&&(me[1]||[]).find(x=>x.hero_id===H), myN=mine?mine.matches_played:0;
+  const ser=[{k:'r',n:BADGE[b]||'tu rango',c:cR},{k:'e',n:BADGE[eb]||'',c:cE},{k:'m',n:acc?acc.name:'',c:myN>=3?me[0]:null}].filter(s=>s.c&&s.c.length);
+  let h=`<div class="panel"><h2>${esc(HMAP[H].name)} · farmeo y mapa</h2>`+accBar(acc,myN);
+  h+=`<h3>Ritmo de almas</h3>`+ritmo(ser);
+  h+=`<div class="row" style="margin:18px 0 0">`+Object.entries(FPH).map(([k,p])=>`<button class="tb${(S.fph||'media')===k?' on':''}" data-fph="${k}">${p.n} · ${p.sub}</button>`).join('')+`</div>`;
+  h+=`<h3>De dónde salen las almas · ${ph.n.toLowerCase()}</h3>`+fuentes(ser,ph);
+  h+=`<h3>Mapa de peligro y ruta de campamentos · ${ph.n.toLowerCase()}</h3>`+mapa(H,map,kd,me&&me[2],ph,Math.round((now-kdT)/D));
+  if(acc) h+=`<div class="sub" style="margin-top:10px">Lo tuyo sale de tus partidas con este héroe en los últimos 30 días; lo demás, desde la fecha elegida arriba.</div>`;
+  return h+'</div>';
+}
+function accBar(acc,n){
+  if(acc) return `<div class="row acc"><span class="sub">Comparando contigo:</span><span class="chip">${acc.av?`<img src="${esc(acc.av)}" alt="">`:''}${esc(acc.name)}</span><span class="mute" style="font-size:13px">${n?`${n} partidas con este héroe en 30 días`:'ninguna partida con este héroe en 30 días'}</span><button class="tb" data-unacc>Quitar</button></div>`+(n<3?'<div class="warn">Necesito al menos 3 partidas tuyas con este héroe en los últimos 30 días para ponerte en las gráficas.</div>':'');
+  return `<div class="row acc"><span class="sub">Compárate con la élite:</span><input id="accq" placeholder="Tu nombre de Steam o tu ID" autocomplete="off"><button id="accb">Buscar</button></div><div class="row" id="accr" style="margin-top:6px"></div>`;
+}
+function ritmo(ser){
+  if(!ser.length) return '<div class="sub">Sin datos de almas con estos filtros.</div>';
+  const xmax=Math.min(2400,Math.max(...ser[0].c.map(p=>p.game_time)));
+  let h=lineChart(ser.map(s=>({n:s.n,col:SCOL[s.k],pts:s.c.filter(p=>p.game_time<=xmax).map(p=>[p.game_time,p.net_worth_avg])})),xmax);
+  const T=[360,540,720,900,1200,1500,1800].filter(t=>t<=xmax);
+  h+=`<div class="ntw"><table class="nt"><tr><th>Almas a los…</th>${T.map(t=>`<th>${t/60} min</th>`).join('')}</tr>`+ser.map(s=>`<tr><td><i class="sw" style="background:${SCOL[s.k]}"></i>${esc(s.n)}</td>${T.map(t=>{const v=cv(s.c,'net_worth_avg',t);return `<td>${v==null?'—':nf(v)}</td>`}).join('')}</tr>`).join('')+`</table></div>`;
+  const e=ser.find(s=>s.k==='e'), m=ser.find(s=>s.k==='m'), ref=m||ser.find(s=>s.k==='r');
+  if(e&&ref){const a=cv(ref.c,'net_worth_avg',900), z=cv(e.c,'net_worth_avg',900);
+    if(a&&z){const d=z-a, p=Math.abs(d)/z;
+      h+=`<div class="sub" style="margin-top:6px">A los 15 min ${m?'llevas':'los de '+esc(ref.n)+' llevan'} ${nf(a)} almas y ${esc(e.n)} ${nf(z)}: ${Math.abs(d)<300?(m?'vais a la par.':'van a la par.'):d>0?`${m?'vas':'van'} un ${Math.round(p*100)}% por detrás. Abajo, de dónde sale la diferencia.`:`${m?'vas':'van'} por delante.`}</div>`}}
+  return h;
+}
+function lineChart(L,xmax){
+  const sm=innerWidth<600, W=sm?380:640,Hh=sm?250:240,ml=sm?34:44,mr=sm?74:104,mt=12,mb=26,iw=W-ml-mr,ih=Hh-mt-mb;
+  const ymax=Math.max(1,...L.flatMap(s=>s.pts.map(p=>p[1])))*1.06, st=ymax>60000?20000:ymax>24000?10000:5000;
+  const X=t=>ml+t/xmax*iw, Y=v=>mt+ih-v/ymax*ih, k=v=>v?Math.round(v/1000)+'k':'0';
+  let g='';
+  for(let v=0;v<=ymax;v+=st) g+=`<line x1="${ml}" x2="${ml+iw}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" class="gl"/><text x="${ml-6}" y="${(Y(v)+4).toFixed(1)}" text-anchor="end" class="ax">${k(v)}</text>`;
+  for(let m=0;m*60<=xmax;m+=sm?10:5) g+=`<text x="${X(m*60).toFixed(1)}" y="${Hh-6}" text-anchor="middle" class="ax">${m} min</text>`;
+  L.forEach(s=>g+=`<path d="${s.pts.map((p,i)=>(i?'L':'M')+X(p[0]).toFixed(1)+' '+Y(p[1]).toFixed(1)).join('')}" fill="none" stroke="${s.col}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`);
+  const ends=L.map(s=>{const p=s.pts.at(-1);return {s,x:X(p[0]),y:Y(p[1]),ly:Y(p[1])}}).sort((a,b)=>a.y-b.y);
+  for(let i=1;i<ends.length;i++) if(ends[i].ly-ends[i-1].ly<14) ends[i].ly=ends[i-1].ly+14;
+  ends.forEach(e=>g+=`<circle cx="${e.x.toFixed(1)}" cy="${e.y.toFixed(1)}" r="4" fill="${e.s.col}" stroke="var(--panel)" stroke-width="2"/><text x="${(e.x+9).toFixed(1)}" y="${(e.ly+4).toFixed(1)}" font-size="11" fill="var(--text)">${esc(e.s.n.length>(sm?10:15)?e.s.n.slice(0,sm?9:14)+'…':e.s.n)}</text>`);
+  const ts=[...new Set(L.flatMap(s=>s.pts.map(p=>p[0])))].sort((a,b)=>a-b);
+  ts.forEach((t,i)=>{const x0=i?(X(ts[i-1])+X(t))/2:ml, x1=i<ts.length-1?(X(t)+X(ts[i+1]))/2:ml+iw;
+    const vals=L.map(s=>{const p=s.pts.find(q=>q[0]===t);return p&&{s,v:p[1]}}).filter(Boolean);
+    const tip=`<b>Minuto ${Math.round(t/60)}</b><br>`+vals.map(o=>`<i class="sw" style="background:${o.s.col}"></i>${esc(o.s.n)}: ${nf(o.v)} almas`).join('<br>');
+    g+=`<g class="hx" data-tip="${esc(tip)}"><rect x="${x0.toFixed(1)}" y="${mt}" width="${Math.max(1,x1-x0).toFixed(1)}" height="${ih}" fill="transparent"/><line class="cx" x1="${X(t).toFixed(1)}" x2="${X(t).toFixed(1)}" y1="${mt}" y2="${mt+ih}" stroke="var(--mute)" stroke-width="1"/>${vals.map(o=>`<circle class="cx" cx="${X(t).toFixed(1)}" cy="${Y(o.v).toFixed(1)}" r="4.5" fill="${o.s.col}" stroke="var(--panel)" stroke-width="2"/>`).join('')}</g>`});
+  return (L.length>1?`<div class="lg">${L.map(s=>`<span><i style="background:${s.col}"></i>${esc(s.n)}</span>`).join('')}</div>`:'')+`<div class="viz"><svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Almas acumuladas por minuto">${g}</svg></div>`;
+}
+function fuentes(ser,ph){
+  const rows=SRC.map(s=>({s,v:Object.fromEntries(ser.map(x=>[x.k,gainOf(x.c,s,ph)]))})).filter(r=>ser.some(x=>r.v[x.k]>0));
+  if(!rows.length) return '<div class="sub">Sin datos de fuentes de almas en esta fase.</div>';
+  const mx=Math.max(1,...rows.flatMap(r=>ser.map(x=>r.v[x.k]||0)));
+  let h=(ser.length>1?`<div class="lg">${ser.map(s=>`<span><i style="background:${SCOL[s.k]}"></i>${esc(s.n)}</span>`).join('')}</div>`:'');
+  h+=rows.map(r=>`<div class="br"><div class="bl">${r.s.n}${r.s.neg?' <span class="mute">(menos es mejor)</span>':''}</div><div>`+ser.map(x=>{const v=Math.max(0,r.v[x.k]||0);
+    return `<div class="bw" data-tip="${esc(`<b>${r.s.n}</b><br><i class="sw" style="background:${SCOL[x.k]}"></i>${esc(x.n)}: ${nf(v)} almas en ${ph.n.toLowerCase()}`)}"><span class="bx" style="width:${(v/mx*82).toFixed(1)}%;background:${SCOL[x.k]}"></span><span class="bv">${nf(v)}</span></div>`}).join('')+`</div></div>`).join('');
+  const e=ser.find(s=>s.k==='e'), me=ser.find(s=>s.k==='m'), ref=me||ser.find(s=>s.k==='r');
+  if(e&&ref){
+    const tot=gainOf(e.c,{f:['net_worth_avg']},ph)||1;
+    const gaps=rows.map(r=>{const a=r.v[ref.k],z=r.v[e.k];if(a==null||z==null)return null;return {r,g:r.s.neg?a-z:z-a}}).filter(x=>x&&x.g>=Math.max(120,tot*0.05)).sort((a,b)=>b.g-a.g).slice(0,3);
+    h+=`<div class="need" style="margin-top:10px"><b>${me?'Dónde pierdes almas':'Dónde se quedan atrás los de '+esc(ref.n)} frente a ${esc(e.n)}</b>`+(gaps.length?`<ul class="tips">${gaps.map(x=>`<li><b>${x.r.s.n}: ${nf(x.g)} almas ${x.r.s.neg?'más perdidas':'menos'}.</b> ${x.r.s.tip}</li>`).join('')}</ul>`:`<div class="sub" style="margin-top:4px">${me?'Vas':'Van'} al ritmo de ${esc(e.n)} en esta fase: nada que corregir aquí.</div>`)+`</div>`;
+  }
+  return h;
+}
+function mapa(H,map,kd,kdMe,ph,days){
+  if(!map||!map.radius) return '<div class="sub">No pude cargar el mapa ahora mismo.</div>';
+  const R=map.radius, P=(x,y)=>[(x+R)/(2*R)*1000,(R-y)/(2*R)*1000], dzT=z=>z<0.2?'bajo':z<0.5?'medio':'alto';
+  // Muertes del héroe, giradas 180° cuando jugaba arriba: tu base queda siempre abajo.
+  const deaths=rows=>{const L=[];(rows||[]).forEach(r=>{if(!r.deaths||(!r.position_x&&!r.position_y))return;const f=r.killer_team===0?-1:1;L.push({x:r.position_x*f,y:r.position_y*f,n:r.deaths})});return L};
+  const D=deaths(kd), DM=deaths(kdMe), totD=D.reduce((s,d)=>s+d.n,0), totM=DM.reduce((s,d)=>s+d.n,0);
+  const cell=640, G={}; D.forEach(d=>{const k=Math.round(d.x/cell)+','+Math.round(d.y/cell);G[k]=(G[k]||0)+d.n});
+  const gmax=Math.max(1,...Object.values(G));
+  let heat='';Object.entries(G).forEach(([k,n])=>{const [i,j]=k.split(',').map(Number), [sx,sy]=P(i*cell,j*cell), a=n/gmax;if(a<0.22)return;
+    heat+=`<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="${(12+16*a).toFixed(1)}" fill="#e66767" fill-opacity="${Math.min(.85,(a-0.15)*1.1).toFixed(2)}"/>`});
+  const camps=(map.neutral_camps||[]).filter(c=>KV[c.kind]).map(c=>{const wx=c.left_relative*2*R-R, wy=R-c.top_relative*2*R;let dn=0;
+    D.forEach(d=>{const r=Math.hypot(d.x-wx,d.y-wy);if(r<1500)dn+=d.n*(1-r/1500)});return {...c,wx,wy,dn}});
+  const dmax=Math.max(1,...camps.map(c=>c.dn));camps.forEach(c=>c.dz=c.dn/dmax);
+  const tk=['team0_tier1_1','team0_tier1_3','team0_tier1_4'][S.flane]||'team0_tier1_3', to=(map.objective_positions||{})[tk];
+  const start=to?{wx:to.left_relative*2*R-R,wy:R-to.top_relative*2*R}:{wx:0,wy:-3000};
+  const cfg={carril:{k:['weak','medium'],ymax:0,dist:6500,n:3},media:{k:['weak','medium','strong','vault'],ymax:1200,dist:9000,n:5},final:{k:['weak','medium','strong','vault'],ymax:4500,dist:11000,n:5}}[S.fph]||{k:['weak','medium','strong','vault'],ymax:1200,dist:9000,n:5};
+  let pool=camps.filter(c=>cfg.k.includes(c.kind)&&c.wy<=cfg.ymax&&Math.hypot(c.wx-start.wx,c.wy-start.wy)<=cfg.dist), pos=start;
+  const route=[];
+  while(route.length<cfg.n&&pool.length){let best=null,bs=-1;
+    pool.forEach(c=>{const s=KV[c.kind].v*(1-0.8*c.dz)/(1+Math.hypot(c.wx-pos.wx,c.wy-pos.wy)/3000);if(s>bs){bs=s;best=c}});
+    route.push(best);pool=pool.filter(c=>c!==best);pos=best}
+  const img=(map.images||{}).minimap||(map.images||{}).plain;
+  let svg=`<svg viewBox="0 0 1000 1000" role="img" aria-label="Mapa con las muertes del héroe y la ruta de campamentos"><defs><filter id="hb" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="9"/></filter></defs>`+
+    (img?`<image href="${esc(img)}" x="0" y="0" width="1000" height="1000" opacity=".8"/>`:'')+`<g filter="url(#hb)">${heat}</g>`;
+  const pts=[start,...route].map(c=>P(c.wx,c.wy));
+  svg+=`<polyline points="${pts.map(p=>p.map(v=>v.toFixed(1)).join(',')).join(' ')}" fill="none" stroke="var(--acc)" stroke-width="3.5" stroke-dasharray="10 7" stroke-linecap="round"/>`;
+  svg+=`<circle cx="${pts[0][0].toFixed(1)}" cy="${pts[0][1].toFixed(1)}" r="9" fill="var(--bg)" stroke="var(--acc)" stroke-width="3"/>`;
+  DM.forEach(d=>{const [sx,sy]=P(d.x,d.y);svg+=`<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="${(5+Math.min(7,d.n*2)).toFixed(1)}" fill="none" stroke="${SCOL.m}" stroke-width="2.5"/>`});
+  camps.forEach(c=>{const [sx,sy]=P(c.wx,c.wy), k=KV[c.kind], on=route.includes(c);
+    const sh=c.kind==='vault'?`<rect x="${(sx-k.r).toFixed(1)}" y="${(sy-k.r).toFixed(1)}" width="${2*k.r}" height="${2*k.r}" rx="2"`:`<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="${k.r}"`;
+    svg+=`<g data-tip="${esc(`<b>Campamento ${k.n}</b><br>Peligro para ${esc(HMAP[H].name)}: ${dzT(c.dz)}`)}">${sh} fill="${on?'var(--acc)':'#0f1012'}" fill-opacity="${on?1:.8}" stroke="${on?'#1a1405':'#e9e6df'}" stroke-width="2"/></g>`});
+  route.forEach((c,i)=>{const [sx,sy]=P(c.wx,c.wy);svg+=`<circle cx="${sx.toFixed(1)}" cy="${(sy-26).toFixed(1)}" r="13" fill="var(--acc)" stroke="#1a1405" stroke-width="2"/><text x="${sx.toFixed(1)}" y="${(sy-21).toFixed(1)}" text-anchor="middle" font-size="15" font-weight="700" fill="#1a1405">${i+1}</text>`});
+  svg+='</svg>';
+  let h=`<div class="row" style="margin-bottom:6px"><span class="sub">Tu carril (mirando con tu base abajo):</span>`+['Izquierda','Centro','Derecha'].map((n,i)=>`<button class="tb${S.flane===i?' on':''}" data-flane="${i}">${n}</button>`).join('')+`</div>`;
+  h+=`<div class="sub">${totD?`Rojo = dónde murió ${esc(HMAP[H].name)} en ${ph.n.toLowerCase()} (${nf(totD)} muertes en los últimos ${days} días${+S.badge>0?', '+BADGE[S.badge]:''}).`:'No pude leer las muertes ahora mismo: la ruta va solo por valor y distancia.'}${totM?` Círculos verdes = tus muertes (${nf(totM)}).`:''} Dorado = la ruta: empieza en el círculo hueco (tu primera torre del carril).</div>`;
+  h+=`<div class="mapw viz">${svg}</div>`;
+  h+=route.length?`<ol class="tips">${route.map(c=>`<li>Campamento ${KV[c.kind].n} · peligro ${dzT(c.dz)}</li>`).join('')}</ol>`:'<div class="sub">No hay campamentos de tu lado cerca de ese carril en esta fase.</div>';
+  h+=`<div class="sub" style="margin-top:6px">La ruta la calcula la página: campamentos de tu lado que más almas dan, cerca de tu carril y lejos de donde más muere tu héroe en esta fase. No copia la ruta de nadie: sale de las muertes. Los datos de los dos equipos están girados para que tu base quede siempre abajo.</div>`;
+  return h;
+}
+function wireTips(){
+  let t=$('#tip');
+  if(!t){t=document.createElement('div');t.id='tip';t.className='tip';document.body.appendChild(t);addEventListener('scroll',()=>t.style.display='none',{passive:true})}
+  const mv=e=>{const x=Math.min(e.clientX+14,innerWidth-t.offsetWidth-8), y=e.clientY+14+t.offsetHeight>innerHeight?e.clientY-t.offsetHeight-10:e.clientY+14;t.style.left=Math.max(8,x)+'px';t.style.top=y+'px'};
+  const show=(el,e)=>{t.innerHTML=el.dataset.tip;t.style.display='block';mv(e)};
+  document.querySelectorAll('#out [data-tip]').forEach(el=>{el.onmouseenter=e=>show(el,e);el.onmousemove=mv;el.onmouseleave=()=>t.style.display='none';el.onclick=e=>show(el,e)});
+}
+function wireFarm(){
+  document.querySelectorAll('[data-fph]').forEach(b=>b.onclick=()=>{S.fph=b.dataset.fph;store.set('fph',S.fph);run()});
+  document.querySelectorAll('[data-flane]').forEach(b=>b.onclick=()=>{S.flane=+b.dataset.flane;store.set('flane',S.flane);run()});
+  const u=$('[data-unacc]');if(u)u.onclick=()=>{S.acc=null;store.set('acc',null);run()};
+  const q=$('#accq'), btn=$('#accb');if(!q)return;
+  const go=async()=>{const s=q.value.trim(), r=$('#accr');if(!s)return;r.innerHTML='<span class="load">Buscando…</span>';
+    try{const L=await get(`/v1/players/steam-search?search_query=${encodeURIComponent(s)}&limit=5`);
+      if(!L||!L.length) throw new Error('HTTP 404');
+      r.innerHTML=L.map(p=>`<button class="tb" data-acc="${p.account_id}" data-n="${esc(p.personaname)}" data-av="${esc(p.avatar||'')}">${p.avatar?`<img src="${esc(p.avatar)}" alt="" style="width:18px;height:18px;border-radius:50%;vertical-align:-4px"> `:''}${esc(p.personaname)} <span class="mute">· ${p.matches_played_last_30d||0} partidas en 30 días</span></button>`).join('');
+      r.querySelectorAll('[data-acc]').forEach(b=>b.onclick=()=>{S.acc={id:+b.dataset.acc,name:b.dataset.n,av:b.dataset.av};store.set('acc',S.acc);run()});
+    }catch(e){r.innerHTML=`<span class="sub">${/404/.test(e.message)?'No encuentro esa cuenta. Prueba con tu nombre exacto de Steam o tu ID de amigo.':'La búsqueda falló: '+esc(e.message)}</span>`}};
+  btn.onclick=go;q.onkeydown=e=>{if(e.key==='Enter')go()};
+}
+
 init();
 </script>
 </body>
