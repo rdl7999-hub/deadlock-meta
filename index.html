@@ -616,7 +616,7 @@ const nf=v=>Math.round(v).toLocaleString('es-ES');
 async function farmTab(){
   const H=S.hero, now=Math.floor(Date.now()/3600000)*3600, D=86400, ph=FPH[S.fph]||FPH.media;
   const b=+S.badge, eb=b<100?100:b<110?110:null, rk=b>0?'&min_average_badge='+b:'';
-  const tw=`&min_game_time_s=${ph.a}`+(ph.b?`&max_game_time_s=${ph.b}`:''), kdT=Math.max(S.since,now-3*D), acc=S.acc, aT=now-30*D;
+  const tw=`&min_game_time_s=${ph.a}`+(ph.b?`&max_game_time_s=${ph.b}`:''), kdT=Math.max(S.since,now-3*D), acc=S.acc, aT=S.since;
   const C='/v1/analytics/player-performance-curve?resolution=0&hero_ids='+H;
   const [cR,cE,map,kd,me]=await Promise.all([
     get(`${C}&${filt()}`),
@@ -633,11 +633,11 @@ async function farmTab(){
   h+=`<div class="row" style="margin:18px 0 0">`+Object.entries(FPH).map(([k,p])=>`<button class="tb${(S.fph||'media')===k?' on':''}" data-fph="${k}">${p.n} · ${p.sub}</button>`).join('')+`</div>`;
   h+=`<h3>De dónde salen las almas · ${ph.n.toLowerCase()}</h3>`+fuentes(ser,ph);
   h+=`<h3>Mapa de peligro y ruta de campamentos · ${ph.n.toLowerCase()}</h3>`+mapa(H,map,kd,me&&me[2],ph,Math.round((now-kdT)/D));
-  if(acc) h+=`<div class="sub" style="margin-top:10px">Lo tuyo sale de tus partidas con este héroe en los últimos 30 días; lo demás, desde la fecha elegida arriba.</div>`;
+  if(acc) h+=`<div class="sub" style="margin-top:10px">Todo sale de partidas desde la fecha elegida arriba, las tuyas y las del resto: así no se mezclan partidas de antes del parche.</div>`;
   return h+'</div>';
 }
 function accBar(acc,n){
-  if(acc) return `<div class="row acc"><span class="sub">Comparando contigo:</span><span class="chip">${acc.av?`<img src="${esc(acc.av)}" alt="">`:''}${esc(acc.name)}</span><span class="mute" style="font-size:13px">${n?`${n} partidas con este héroe en 30 días`:'ninguna partida con este héroe en 30 días'}</span><button class="tb" data-unacc>Quitar</button></div>`+(n<3?'<div class="warn">Necesito al menos 3 partidas tuyas con este héroe en los últimos 30 días para ponerte en las gráficas.</div>':'');
+  if(acc) return `<div class="row acc"><span class="sub">Comparando contigo:</span><span class="chip">${acc.av?`<img src="${esc(acc.av)}" alt="">`:''}${esc(acc.name)}</span><span class="mute" style="font-size:13px">${n?`${n} partidas con este héroe desde la fecha elegida`:'ninguna partida con este héroe desde la fecha elegida'}</span><button class="tb" data-unacc>Quitar</button></div>`+(n<3?'<div class="warn">Necesito al menos 3 partidas tuyas con este héroe desde la fecha elegida para ponerte en las gráficas. Amplía la fecha arriba (por ejemplo, hace 14 o 30 días).</div>':'');
   return `<div class="row acc"><span class="sub">Compárate con la élite:</span><input id="accq" placeholder="Tu nombre de Steam o tu ID" autocomplete="off"><button id="accb">Buscar</button></div><div class="row" id="accr" style="margin-top:6px"></div>`;
 }
 function ritmo(ser){
