@@ -1,0 +1,73 @@
+/* Sistema común de Deadlock Meta (index.html, duo.html y lo que venga: foro, cuentas).
+   Layout: cabecera fija con marca + menú en dos grupos (En vivo / Guía); contenido a 1180px; pie con fuentes y aviso. */
+:root {
+  /* Oscuro primero: un pasillo de piedra azulada con latón envejecido. */
+  --bg: #11161b; --surface: #182027; --raised: #202a33; --line: #2c3842;
+  --fg: #ebe6da; --muted: #9ba5a9; --accent: #d8b25a; --accent-ink: #1a1408;
+  --arma: #e8963a; --vital: #86b94a; --espiritu: #b384ea;
+  --good: #7fc28a; --bad: #e57a6f; --bad-ink: #1f0b08;
+  --shadow: 0 8px 24px rgb(0 0 0 / .35);
+  --f-display: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --f-body: "Barlow", "Segoe UI", system-ui, sans-serif;
+  --f-label: "Barlow Condensed", "Arial Narrow", "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) {
+  --bg: #edf0f1; --surface: #ffffff; --raised: #f5f7f8; --line: #d3dade;
+  --fg: #172027; --muted: #5a666c; --accent: #94701c; --accent-ink: #ffffff;
+  --arma: #b5620c; --vital: #4c7d1c; --espiritu: #7745b5;
+  --good: #2d7a3a; --bad: #b8392c; --bad-ink: #ffffff;
+  --shadow: 0 8px 24px rgb(23 32 39 / .14); color-scheme: light; } }
+:root[data-theme="light"] {
+  --bg: #edf0f1; --surface: #ffffff; --raised: #f5f7f8; --line: #d3dade;
+  --fg: #172027; --muted: #5a666c; --accent: #94701c; --accent-ink: #ffffff;
+  --arma: #b5620c; --vital: #4c7d1c; --espiritu: #7745b5;
+  --good: #2d7a3a; --bad: #b8392c; --bad-ink: #ffffff;
+  --shadow: 0 8px 24px rgb(23 32 39 / .14); color-scheme: light; }
+
+* { box-sizing: border-box; }
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 400 15px/1.5 var(--f-body); -webkit-text-size-adjust: 100%; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+a { color: var(--accent); }
+h1, h2, h3 { text-wrap: balance; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.lbl { font: 600 12px/1 var(--f-label); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+
+/* Cabecera común */
+header.top { background: var(--surface); border-bottom: 1px solid var(--line); position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; }
+header.top .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; padding-block: 10px; }
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; text-decoration: none; color: var(--fg); }
+.brand svg { width: 30px; height: 30px; flex: none; display: block; }
+.brand .wm { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.brand b { font: 800 26px/.9 var(--f-display); text-transform: uppercase; letter-spacing: .03em; white-space: nowrap; }
+.brand b span { color: var(--accent); }
+.brand small { font: 600 11px/1 var(--f-label); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.pmeta { font: 500 13px/1.25 var(--f-label); color: var(--muted); min-width: 0; flex: 1 1 200px; }
+nav.tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-left: auto; }
+nav.tabs .grp { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+nav.tabs .grp + .grp { border-left: 1px solid var(--line); padding-left: 8px; margin-left: 4px; }
+nav.tabs .gl { font: 600 11px/1 var(--f-label); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); padding-right: 4px; display: inline-flex; align-items: center; gap: 5px; }
+nav.tabs .gl.live::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 3px color-mix(in srgb, var(--good) 22%, transparent); }
+nav.tabs a { font: 700 15px/1 var(--f-label); text-transform: uppercase; letter-spacing: .05em; color: var(--muted); text-decoration: none; padding: 9px 11px; border-radius: 6px; white-space: nowrap; }
+nav.tabs a[aria-current="page"] { background: var(--accent); color: var(--accent-ink); }
+nav.tabs a:hover:not([aria-current]) { color: var(--fg); background: var(--raised); }
+
+/* Pie común */
+.site-foot { border-top: 1px solid var(--line); margin-top: 40px; padding-block: 18px 30px; color: var(--muted); font-size: 13px; display: grid; gap: 6px; }
+.site-foot p { margin: 0; max-width: 90ch; }
+.site-foot .legal { font: 500 12px/1.4 var(--f-label); letter-spacing: .02em; }
+
+@media (max-width: 760px) {
+  nav.tabs { margin-left: 0; width: 100%; }
+  nav.tabs .grp { flex: 1 1 100%; }
+  nav.tabs .grp + .grp { border-left: 0; padding-left: 0; margin-left: 0; }
+  nav.tabs .gl { display: none; }
+  nav.tabs a { flex: 1 1 0; text-align: center; padding: 9px 3px; font-size: 13.5px; letter-spacing: .02em; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .brand b { font-size: 23px; }
+  .pmeta { flex-basis: 100%; }
+}

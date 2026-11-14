@@ -2,35 +2,34 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Deadlock · Meta en vivo</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Deadlock Meta · En vivo</title>
 <meta name="robots" content="noindex">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23e8b04a'/%3E%3Cpath d='M4 3h4a5 5 0 010 10H4z' fill='%230f1012'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 1.5 28.5 8.5v15L16 30.5 3.5 23.5v-15z' fill='%23d8b25a'/%3E%3Ccircle cx='16' cy='13' r='4.2' fill='%231a1408'/%3E%3Cpath d='M14 15.5h4l1.2 8h-6.4z' fill='%231a1408'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="site.css">
 <style>
-:root{--bg:#0f1012;--panel:#17191c;--panel2:#1f2226;--line:#2c3036;--text:#e9e6df;--mute:#9a978f;--acc:#e8b04a;--good:#5fd38a;--bad:#ef6b5e;--weapon:#e0913a;--vitality:#6cc04a;--spirit:#a77be0}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-a{color:var(--acc)}
-.wrap{max-width:1100px;margin:0 auto;padding:16px}
-header h1{font-size:22px;margin:0 0 4px;letter-spacing:.3px}
-header h1 span{color:var(--acc)}
+:root{--panel:var(--surface);--panel2:var(--raised);--text:var(--fg);--mute:var(--muted);--acc:var(--accent);--weapon:var(--arma);--vitality:var(--vital);--spirit:var(--espiritu)}
+main.wrap{padding-block:14px 0}
 .sub{color:var(--mute);font-size:13px}
-.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:12px 0}
-select,button{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font:inherit;font-size:14px}
+.ctx{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;justify-content:space-between;margin:0 0 4px}
+.ctx .sub{flex:1 1 380px;min-width:0;max-width:80ch}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.bar label{font:600 12px/1 var(--f-label);letter-spacing:.08em;text-transform:uppercase;color:var(--mute);display:inline-flex;gap:8px;align-items:center}
+select,button{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:7px 10px;font:600 14px/1.2 var(--f-label);letter-spacing:.03em;text-transform:none}
+button:hover{border-color:var(--acc)}
 button{cursor:pointer}
-.tabs a.gtab{border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:14px;color:var(--mute);text-decoration:none}
-.tabs a.gtab:first-of-type{margin-left:10px}
-.tabs a.gtab:hover{color:var(--text);border-color:var(--acc)}
 a.guia{font-size:13px;font-weight:400;color:var(--acc);margin-left:8px;white-space:nowrap}
-.tabs{display:flex;gap:6px;margin:14px 0 10px}
-.tabs button.on{background:var(--acc);color:#1a1405;border-color:var(--acc);font-weight:600}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin:12px 0}
-.panel h2{font-size:16px;margin:0 0 10px}
-.panel h3{font-size:14px;margin:14px 0 8px;color:var(--mute);font-weight:600;text-transform:uppercase;letter-spacing:.6px}
-.heroes{display:grid;grid-template-columns:repeat(auto-fill,minmax(54px,1fr));gap:6px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin:14px 0}
+.panel h2{font:800 24px/1 var(--f-display);text-transform:uppercase;letter-spacing:.02em;margin:0 0 10px}
+.panel h3{font:600 13px/1.2 var(--f-label);margin:16px 0 8px;color:var(--mute);text-transform:uppercase;letter-spacing:.08em}
+.heroes{display:grid;grid-template-columns:repeat(auto-fill,minmax(66px,1fr));gap:6px}
 .h{position:relative;background:var(--panel2);border:2px solid transparent;border-radius:9px;padding:3px;cursor:pointer;text-align:center}
 .h img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;display:block}
-.h small{display:block;font-size:10px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.h small{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font:600 12px/1.05 var(--f-label);color:var(--mute);overflow-wrap:anywhere;min-height:2.1em;margin-top:3px}
+.h:hover{border-color:var(--line)}
 .h.me{border-color:var(--acc)}
 .h.foe{border-color:var(--bad)}
 .h.foe::after{content:"✕";position:absolute;top:1px;right:4px;color:var(--bad);font-weight:700;font-size:12px}
@@ -43,47 +42,44 @@ a.guia{font-size:13px;font-weight:400;color:var(--acc);margin-left:8px;white-spa
 .it{display:flex;gap:10px;align-items:center;background:var(--panel2);border:1px solid var(--line);border-left:4px solid var(--line);border-radius:9px;padding:7px 9px}
 .it.weapon{border-left-color:var(--weapon)}.it.vitality{border-left-color:var(--vitality)}.it.spirit{border-left-color:var(--spirit)}
 .it img{width:38px;height:38px;flex:none}
-.it .n{font-weight:600;font-size:14px}
+.it .n{font:700 16px/1.15 var(--f-label)}
 .it .m{font-size:12px;color:var(--mute)}
 .it .s{margin-left:auto;font-weight:700;font-size:15px;text-align:right;white-space:nowrap}
-.tag{font-size:10px;background:var(--acc);color:#1a1405;border-radius:4px;padding:0 4px;margin-left:4px;font-weight:700;vertical-align:1px}
+.tag{font-size:10px;background:var(--acc);color:var(--accent-ink);border-radius:4px;padding:0 4px;margin-left:4px;font-weight:700;vertical-align:1px}
 .why{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}
-.why span{font-size:11px;background:#0003;border-radius:4px;padding:0 5px}
+.why span{font-size:11px;background:color-mix(in srgb,var(--fg) 8%,transparent);border-radius:4px;padding:0 5px}
 .build{border:1px solid var(--line);border-radius:10px;padding:10px;margin:10px 0;background:var(--panel2)}
 .build .t{display:flex;flex-wrap:wrap;gap:8px;align-items:baseline;justify-content:space-between}
-.build .t b{font-size:15px}
+.build .t b{font:700 18px/1.1 var(--f-label)}
 .cat{margin-top:8px}
 .cat .cn{font-size:12px;color:var(--mute);margin-bottom:4px}
 .icons{display:flex;flex-wrap:wrap;gap:4px}
 .icons img{width:40px;height:40px;background:var(--bg);border-radius:6px;border-bottom:3px solid var(--line)}
 .icons img.weapon{border-bottom-color:var(--weapon)}.icons img.vitality{border-bottom-color:var(--vitality)}.icons img.spirit{border-bottom-color:var(--spirit)}
 .copy{font-size:12px;padding:3px 8px}
-.warn{background:#3a2a10;border:1px solid #6b4a14;color:#f3d29a;border-radius:8px;padding:8px 10px;font-size:13px;margin:8px 0}
-.err{background:#3a1512;border-color:#7a2a22;color:#f6b9b2}
+.warn{background:color-mix(in srgb,var(--accent) 13%,var(--surface));border:1px solid color-mix(in srgb,var(--accent) 45%,transparent);color:var(--fg);border-radius:8px;padding:8px 10px;font-size:13px;margin:8px 0}
+.err{background:color-mix(in srgb,var(--bad) 13%,var(--surface));border-color:color-mix(in srgb,var(--bad) 50%,transparent);color:var(--fg)}
 .load{color:var(--mute);font-style:italic;padding:8px 0}
 .cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media (max-width:760px){.cols{grid-template-columns:1fr}.items{grid-template-columns:1fr}}
 .tb{font-size:12px;padding:4px 10px;border-radius:999px}
-.tb.on{background:var(--acc);color:#1a1405;border-color:var(--acc);font-weight:600}
-.tb.th.on,.tb.fd.on{background:var(--bad);border-color:var(--bad);color:#fff}
+.tb.on{background:var(--acc);color:var(--accent-ink);border-color:var(--acc);font-weight:600}
+.tb.th.on,.tb.fd.on{background:var(--bad);border-color:var(--bad);color:var(--bad-ink)}
 .tg{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:7px 0;border-top:1px solid var(--line)}
 .tg .sep{width:1px;height:18px;background:var(--line);margin:0 2px}
 .tg select{font-size:12px;padding:4px 8px}
-.tagt{font-size:10px;background:var(--bad);color:#fff;border-radius:4px;padding:0 4px;margin-left:4px;font-weight:700;vertical-align:1px}
+.tagt{font-size:10px;background:var(--bad);color:var(--bad-ink);border-radius:4px;padding:0 4px;margin-left:4px;font-weight:700;vertical-align:1px}
 .t2{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-bottom:8px}.t2 h2{margin:0}
 .cols3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 .need{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:8px 10px;margin:6px 0}
 .need .row{margin-top:6px}
-.mi{display:inline-flex;align-items:center;gap:6px;background:#0003;border-radius:7px;padding:3px 8px 3px 3px;font-size:13px;border-left:3px solid var(--line)}
+.mi{display:inline-flex;align-items:center;gap:6px;background:color-mix(in srgb,var(--fg) 8%,transparent);border-radius:7px;padding:3px 8px 3px 3px;font-size:13px;border-left:3px solid var(--line)}
 .mi img{width:26px;height:26px}
 .mi.weapon{border-left-color:var(--weapon)}.mi.vitality{border-left-color:var(--vitality)}.mi.spirit{border-left-color:var(--spirit)}
 .minis{display:flex;flex-direction:column;gap:4px;align-items:flex-start}
 .who{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;margin-left:6px}.who img{width:22px;height:22px;border-radius:50%}
 @media (max-width:900px){.cols3{grid-template-columns:1fr}}
-footer{color:var(--mute);font-size:12px;margin:20px 0 30px}
-.tabs{flex-wrap:wrap}
-@media (max-width:560px){.tabs button{flex:1 1 30%;padding:8px 4px;font-size:13px}.tabs a.gtab,.tabs a.gtab:first-of-type{flex:1 1 22%;margin-left:0;text-align:center;padding:7px 2px;font-size:13px}}
-.tip{position:fixed;pointer-events:none;background:#0b0c0e;border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:12px;line-height:1.5;z-index:20;display:none;max-width:280px}
+.tip{position:fixed;pointer-events:none;background:var(--surface);color:var(--fg);box-shadow:var(--shadow);border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:12px;line-height:1.5;z-index:20;display:none;max-width:280px}
 .sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
 .lg{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--mute);margin:4px 0 6px}
 .lg i{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
@@ -105,38 +101,36 @@ table.nt th:first-child,table.nt td:first-child{text-align:left}table.nt th{colo
 .ab .hd{font-size:11px;color:var(--mute);text-align:center;line-height:1.2}.ab .hd span{font-size:10px}
 .ab .an{display:flex;align-items:center;gap:6px;font-size:13px;padding-right:6px}.ab .an img{width:26px;height:26px;border-radius:5px;flex:none}
 .ab .c{width:28px;height:26px;border-radius:5px;background:var(--panel2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
-.ab .c.on{background:var(--acc);color:#1a1405}.ab .c.un{background:#4a4f57;color:var(--text)}
+.ab .c.on{background:var(--acc);color:var(--accent-ink)}.ab .c.un{background:var(--line);color:var(--text)}
 .acc input{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font:inherit;font-size:14px;width:230px;max-width:100%}
 .mapw{max-width:600px;margin:6px auto}
 @media (max-width:760px){.br{grid-template-columns:1fr;gap:2px}}
 </style>
 </head>
 <body>
-<div class="wrap">
-<header>
-  <h1>Deadlock · <span>Meta en vivo</span></h1>
-  <div class="sub" id="patch">Buscando el último parche…</div>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="index.html" aria-label="Deadlock Meta, inicio"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 1.5 28.5 8.5v15L16 30.5 3.5 23.5v-15z" fill="var(--accent)"/><circle cx="16" cy="13" r="4.2" fill="var(--accent-ink)"/><path d="M14 15.5h4l1.2 8h-6.4z" fill="var(--accent-ink)"/></svg><span class="wm"><b>Deadlock <span>Meta</span></b><small>Builds · counters · dúos</small></span></a>
+    
+    <nav class="tabs" aria-label="Secciones">
+      <div class="grp"><span class="gl live">En vivo</span><a href="#t=build" data-tab="build">Build del meta</a><a href="#t=counter" data-tab="counter">Contra su equipo</a><a href="#t=farm" data-tab="farm">Farmeo y mapa</a></div>
+      <div class="grp"><span class="gl">Guía</span><a href="duo.html#heroes" data-v="heroes">Héroes</a><a href="duo.html#duos" data-v="duos">Dúos</a><a href="duo.html#peleas" data-v="peleas">Peleas</a><a href="duo.html#glosario" data-v="glosario">Glosario</a></div>
+    </nav>
+  </div>
 </header>
-
-<div class="bar">
-  <label>Datos desde <select id="since"></select></label>
-  <label>Rango <select id="badge">
-    <option value="0">Todos</option>
-    <option value="70">Emisario+</option>
-    <option value="80">Oráculo+</option>
-    <option value="90">Fantasma+</option>
-    <option value="100">Ascendente+</option>
-  </select></label>
-</div>
-
-<div class="tabs">
-  <button data-tab="build">Build del meta</button>
-  <button data-tab="counter">Contra su equipo</button>
-  <button data-tab="farm">Farmeo y mapa</button>
-  <a class="gtab" href="duo.html#heroes">Héroes</a>
-  <a class="gtab" href="duo.html#duos">Dúos</a>
-  <a class="gtab" href="duo.html#peleas">Peleas</a>
-  <a class="gtab" href="duo.html#glosario">Glosario</a>
+<main class="wrap">
+<div class="ctx">
+  <div class="sub" id="patch">Buscando el último parche…</div>
+  <div class="bar">
+    <label>Datos desde <select id="since"></select></label>
+    <label>Rango <select id="badge">
+      <option value="0">Todos</option>
+      <option value="70">Emisario+</option>
+      <option value="80">Oráculo+</option>
+      <option value="90">Fantasma+</option>
+      <option value="100">Ascendente+</option>
+    </select></label>
+  </div>
 </div>
 
 <div class="panel">
@@ -150,11 +144,12 @@ table.nt th:first-child,table.nt td:first-child{text-align:left}table.nt th{colo
 
 <div id="out"></div>
 
-<footer>
-  Datos de <a href="https://deadlock-api.com" target="_blank" rel="noopener">deadlock-api.com</a>, consultados en directo cada vez que abres o cambias algo (la API los cachea 1 hora).
-  Las ventajas se miden contra la media del propio objeto y del propio emparejamiento, no en bruto. Objetos caros comprados tarde salen inflados en «Build del meta»: mira la frecuencia, no solo el %.
+</main>
+<footer class="site-foot wrap">
+  <p>Datos de <a href="https://deadlock-api.com" target="_blank" rel="noopener">deadlock-api.com</a>, consultados en directo cada vez que abres o cambias algo (la API los cachea 1 hora).
+  Las ventajas se miden contra la media del propio objeto y del propio emparejamiento, no en bruto. Objetos caros comprados tarde salen inflados en «Build del meta»: mira la frecuencia, no solo el %.</p>
+  <p class="legal">Web de fans, sin relación con Valve. Deadlock y sus imágenes son marcas de Valve Corporation. Datos públicos de <a href="https://deadlock-api.com" target="_blank" rel="noopener">deadlock-api.com</a>.</p>
 </footer>
-</div>
 
 <script>
 const API='https://api.deadlock-api.com';
@@ -197,7 +192,7 @@ function wilson(w,n){if(!n)return 0;const z=1.96,p=w/n;return (p+z*z/(2*n)-z*Mat
 async function init(){
   loadHash();
   $('#badge').value=S.badge;
-  document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;store.set('tab',S.tab);draw()});
+  document.querySelectorAll('nav.tabs a[data-tab]').forEach(b=>b.onclick=e=>{e.preventDefault();S.tab=b.dataset.tab;store.set('tab',S.tab);draw()});
   $('#badge').onchange=e=>{S.badge=e.target.value;store.set('badge',S.badge);run()};
   $('#since').onchange=e=>{S.since=+e.target.value;run()};
   try{
@@ -238,7 +233,7 @@ function buildSince(){
   const p=major||any;
   $('#patch').innerHTML=p?`Último parche de juego: <a href="${esc(p.link)}" target="_blank" rel="noopener">${esc(clean(p.title))}</a> · ${fd(ts(p))}. Todo lo de abajo se calcula solo con partidas posteriores.`:'No pude leer la lista de parches: uso los últimos 7 días.';
   if(any&&major&&ts(any)>ts(major)) $('#patch').innerHTML+=` <span class="mute">Después hubo un parche menor (${fd(ts(any))}).</span>`;
-  $('#patch').innerHTML+=` <b>Por defecto se usan solo los datos más recientes</b>; lo que funcionaba antes y ya no, lo marca «Qué ha cambiado».`;
+  $('#patch').innerHTML+=` Lo que dejó de funcionar sale en «Qué ha cambiado».`;
 }
 
 function drawHeroes(){
@@ -317,7 +312,7 @@ function loadHash(){const t=location.hash.match(/[#&]t=(build|counter|farm)/),hh
   try{const o=JSON.parse(b64d(m[1]));S.tab='counter';S.mode=o.m==='coach'?'coach':'jug';S.hero=o.h??null;S.allies=new Set(o.a||[]);S.foes=new Set(o.f||[]);S.tags=o.t||{};if(o.b!=null)S.badge=String(o.b)}catch(e){}}
 function draw(){
   if(S.mode!=='coach'&&S.hero) S.foes.delete(S.hero);
-  document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===S.tab));
+  document.querySelectorAll('nav.tabs a[data-tab]').forEach(b=>b.dataset.tab===S.tab?b.setAttribute('aria-current','page'):b.removeAttribute('aria-current'));
   drawHeroes(); run();
 }
 let runId=0;
