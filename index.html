@@ -18,6 +18,10 @@ header h1 span{color:var(--acc)}
 .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:12px 0}
 select,button{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font:inherit;font-size:14px}
 button{cursor:pointer}
+.tabs a.gtab{border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:14px;color:var(--mute);text-decoration:none}
+.tabs a.gtab:first-of-type{margin-left:10px}
+.tabs a.gtab:hover{color:var(--text);border-color:var(--acc)}
+a.guia{font-size:13px;font-weight:400;color:var(--acc);margin-left:8px;white-space:nowrap}
 .tabs{display:flex;gap:6px;margin:14px 0 10px}
 .tabs button.on{background:var(--acc);color:#1a1405;border-color:var(--acc);font-weight:600}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin:12px 0}
@@ -78,6 +82,7 @@ button{cursor:pointer}
 @media (max-width:900px){.cols3{grid-template-columns:1fr}}
 footer{color:var(--mute);font-size:12px;margin:20px 0 30px}
 .tabs{flex-wrap:wrap}
+@media (max-width:560px){.tabs button{flex:1 1 30%;padding:8px 4px;font-size:13px}.tabs a.gtab,.tabs a.gtab:first-of-type{flex:1 1 22%;margin-left:0;text-align:center;padding:7px 2px;font-size:13px}}
 .tip{position:fixed;pointer-events:none;background:#0b0c0e;border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:12px;line-height:1.5;z-index:20;display:none;max-width:280px}
 .sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
 .lg{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--mute);margin:4px 0 6px}
@@ -128,6 +133,10 @@ table.nt th:first-child,table.nt td:first-child{text-align:left}table.nt th{colo
   <button data-tab="build">Build del meta</button>
   <button data-tab="counter">Contra su equipo</button>
   <button data-tab="farm">Farmeo y mapa</button>
+  <a class="gtab" href="duo.html#heroes">Héroes</a>
+  <a class="gtab" href="duo.html#duos">Dúos</a>
+  <a class="gtab" href="duo.html#peleas">Peleas</a>
+  <a class="gtab" href="duo.html#glosario">Glosario</a>
 </div>
 
 <div class="panel">
@@ -302,7 +311,9 @@ function b64e(s){return btoa(unescape(encodeURIComponent(s))).replace(/\+/g,'-')
 function b64d(s){return decodeURIComponent(escape(atob(s.replace(/-/g,'+').replace(/_/g,'/'))))}
 function shareURL(){const t={};[...S.foes,...S.allies].forEach(id=>{if(S.tags[id])t[id]=S.tags[id]});
   return location.href.split('#')[0]+'#p='+b64e(JSON.stringify({m:S.mode,h:S.hero,a:[...S.allies],f:[...S.foes],t,b:S.badge}))}
-function loadHash(){const m=location.hash.match(/p=([\w-]+)/);if(!m)return;
+function loadHash(){const t=location.hash.match(/[#&]t=(build|counter|farm)/),hh=location.hash.match(/[#&]h=(\d+)/);
+  if(t){S.tab=t[1];store.set('tab',S.tab)} if(hh){S.hero=+hh[1];store.set('hero',S.hero)} if(t||hh)history.replaceState(null,'',location.pathname);
+  const m=location.hash.match(/p=([\w-]+)/);if(!m)return;
   try{const o=JSON.parse(b64d(m[1]));S.tab='counter';S.mode=o.m==='coach'?'coach':'jug';S.hero=o.h??null;S.allies=new Set(o.a||[]);S.foes=new Set(o.f||[]);S.tags=o.t||{};if(o.b!=null)S.badge=String(o.b)}catch(e){}}
 function draw(){
   if(S.mode!=='coach'&&S.hero) S.foes.delete(S.hero);
@@ -347,7 +358,7 @@ async function buildTab(){
   const me=hs.find(x=>x.hero_id===H);
   if(!me||me.matches<50) return `<div class="warn">Casi no hay partidas de ${esc(HMAP[H].name)} con estos filtros (${me?me.matches:0}). Baja el rango o amplía las fechas.</div>`;
   const N=me.matches, hwr=me.wins/N;
-  let html=`<div class="panel"><h2>${esc(HMAP[H].name)} · ${pct(hwr)} de victorias en ${N.toLocaleString('es-ES')} partidas</h2>`;
+  let html=`<div class="panel"><h2>${esc(HMAP[H].name)} · ${pct(hwr)} de victorias en ${N.toLocaleString('es-ES')} partidas<a class="guia" href="duo.html#heroe-id-${H}">Ficha completa en la guía →</a></h2>`;
   if(N<1500) html+=`<div class="warn">Pocas partidas todavía: los porcentajes se mueven mucho. Amplía fechas o baja el rango si algo no te cuadra.</div>`;
 
   // Qué ha cambiado: últimos 7 días frente a las 3 semanas anteriores
@@ -628,7 +639,7 @@ async function farmTab(){
   ]);
   const mine=me&&(me[1]||[]).find(x=>x.hero_id===H), myN=mine?mine.matches_played:0;
   const ser=[{k:'r',n:BADGE[b]||'tu rango',c:cR},{k:'e',n:BADGE[eb]||'',c:cE},{k:'m',n:acc?acc.name:'',c:myN>=3?me[0]:null}].filter(s=>s.c&&s.c.length);
-  let h=`<div class="panel"><h2>${esc(HMAP[H].name)} · farmeo y mapa</h2>`+accBar(acc,myN);
+  let h=`<div class="panel"><h2>${esc(HMAP[H].name)} · farmeo y mapa<a class="guia" href="duo.html#heroe-id-${H}">Ficha completa en la guía →</a></h2>`+accBar(acc,myN);
   h+=`<h3>Ritmo de almas</h3>`+ritmo(ser);
   h+=`<div class="row" style="margin:18px 0 0">`+Object.entries(FPH).map(([k,p])=>`<button class="tb${(S.fph||'media')===k?' on':''}" data-fph="${k}">${p.n} · ${p.sub}</button>`).join('')+`</div>`;
   h+=`<h3>De dónde salen las almas · ${ph.n.toLowerCase()}</h3>`+fuentes(ser,ph);
