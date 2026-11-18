@@ -68,6 +68,12 @@ a.guia{font-size:13px;font-weight:400;color:var(--acc);margin-left:8px;white-spa
 .tg{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:7px 0;border-top:1px solid var(--line)}
 .tg .sep{width:1px;height:18px;background:var(--line);margin:0 2px}
 .tg select{font-size:12px;padding:4px 8px}
+.tag,.tagt,.tagk{white-space:nowrap;display:inline-block}
+.tagk{font-size:10px;background:var(--espiritu);color:#fff;border-radius:4px;padding:0 4px;margin-left:4px;font-weight:700;vertical-align:1px}
+.kit{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px;margin:6px 0 10px}
+.kit .k{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:6px 9px;font-size:13px}
+.kit .k .bar{height:4px;border-radius:2px;background:color-mix(in srgb,var(--fg) 10%,transparent);margin:4px 0 3px}
+.kit .k .bar i{display:block;height:100%;border-radius:2px;background:var(--espiritu)}
 .tagt{font-size:10px;background:var(--bad);color:var(--bad-ink);border-radius:4px;padding:0 4px;margin-left:4px;font-weight:700;vertical-align:1px}
 .t2{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-bottom:8px}.t2 h2{margin:0}
 .cols3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
@@ -204,7 +210,7 @@ async function init(){
     HEROES=heroes.filter(h=>h.player_selectable!==false&&!h.disabled).map(h=>({id:h.id,name:h.class_name==='hero_baba'?'Yagá (Baba)':clean(h.name),img:h.images.icon_image_small_webp||h.images.icon_image_small,sig:['signature1','signature2','signature3','signature4'].map(k=>h.items&&h.items[k]).filter(Boolean)}))
       .sort((a,b)=>a.name.localeCompare(b.name,'es'));
     HEROES.forEach(h=>HMAP[h.id]=h);
-    items.forEach(i=>IMAP[i.id]={id:i.id,name:clean(i.name),slot:i.item_slot_type,tier:i.item_tier,cost:i.cost,img:i.shop_image_webp||i.shop_image||i.image_webp,active:i.is_active_item,cats:cats(i),sus:sus(i)});
+    items.forEach(i=>IMAP[i.id]={id:i.id,name:clean(i.name),slot:i.item_slot_type,tier:i.item_tier,cost:i.cost,img:i.shop_image_webp||i.shop_image||i.image_webp,active:i.is_active_item,cats:cats(i),sus:sus(i),kit:kitOf(i)});
     PATCHES=patches;
   }catch(e){$('#out').innerHTML=`<div class="warn err">No pude cargar los datos base: ${esc(e.message)}. Recarga en un rato.</div>`;return}
   if(S.hero&&!HMAP[S.hero]) S.hero=null;
@@ -341,13 +347,14 @@ async function buildTab(){
   const H=S.hero, f=filt();
   const D=86400, now=Math.floor(Date.now()/3600000)*3600, rk=+S.badge>0?'&min_average_badge='+S.badge:'';
   const wNow=`min_unix_timestamp=${now-7*D}${rk}`, wOld=`min_unix_timestamp=${now-28*D}&max_unix_timestamp=${now-7*D}${rk}`;
-  const [hs,its,bs,trend,abil]=await Promise.all([
+  const [hs,its,bs,trend,abil,KP]=await Promise.all([
     get(`/v1/analytics/hero-stats?${f}`),
     get(`/v1/analytics/item-stats?hero_id=${H}&${f}`),
     get(`/v1/analytics/hero-build-stats?hero_ids=${H}&${f}&min_matches=30`).catch(()=>[]),
     Promise.all([get(`/v1/analytics/hero-stats?${wNow}`),get(`/v1/analytics/hero-stats?${wOld}`),
       get(`/v1/analytics/item-stats?hero_id=${H}&${wNow}`),get(`/v1/analytics/item-stats?hero_id=${H}&${wOld}`)]).catch(()=>null),
-    Promise.all([get(`/v1/analytics/ability-order-tree?hero_id=${H}&${f}&min_matches=40`),get(`/v1/analytics/ability-max-first-stats?hero_id=${H}&${f}`),get(`/v1/assets/items/by-hero-id/${H}?language=spanish`)]).catch(()=>null)
+    Promise.all([get(`/v1/analytics/ability-order-tree?hero_id=${H}&${f}&min_matches=40`),get(`/v1/analytics/ability-max-first-stats?hero_id=${H}&${f}`),get(`/v1/assets/items/by-hero-id/${H}?language=spanish`)]).catch(()=>null),
+    heroKit(H)
   ]);
   const TR=trendOf(H,trend);
   const me=hs.find(x=>x.hero_id===H);
@@ -377,9 +384,11 @@ async function buildTab(){
   const det=await Promise.all(top.map(b=>get(`/v1/builds?build_id=${b.hero_build_id}&only_latest=true`).then(r=>r[0]?.hero_build).catch(()=>null)));
   top.forEach((b,i)=>{
     const d=det[i]; const wr=b.wins/b.matches;
+    const mods=[...new Set((d?.details?.mod_categories||[]).flatMap(c=>(c.mods||[]).map(m=>m.ability_id)))].map(id=>IMAP[id]).filter(Boolean);
+    const nk=mods.filter(x=>kitFit(x,KP).fit>=0.5).length;
     html+=`<div class="build"><div class="t"><b>${esc(d?.name||('Build '+b.hero_build_id))}</b>
       <span><span class="${wr>=hwr?'pos':'neg'}">${pct(wr)}</span> <span class="mute">en ${b.matches.toLocaleString('es-ES')} partidas (${sgn(wr-hwr)} sobre la media)</span>
-      <button class="copy" data-copy="${b.hero_build_id}">Copiar ID</button> <span class="mute">ID ${b.hero_build_id}</span></span></div>`;
+      <button class="copy" data-copy="${b.hero_build_id}">Copiar ID</button> <span class="mute">ID ${b.hero_build_id}</span></span></div>${mods.length&&KP?`<div class="sub" style="margin:-2px 0 6px">Potencian su kit: <b>${nk} de ${mods.length}</b> objetos</div>`:''}`;
     (d?.details?.mod_categories||[]).forEach(c=>{
       const ic=(c.mods||[]).map(m=>IMAP[m.ability_id]).filter(Boolean);
       if(!ic.length) return;
@@ -389,6 +398,7 @@ async function buildTab(){
   });
 
   html+=`<h3>Orden de habilidades que más gana</h3>`+abilitySection(H,hwr,abil);
+  html+=`<h3>Potenciar su kit: lo que hace más fuertes sus habilidades</h3>`+kitSection(KP,its,N,hwr);
 
   // Objetos por coste
   const rows=its.map(r=>{const it=IMAP[r.item_id];if(!it||!r.matches)return null;
@@ -401,7 +411,7 @@ async function buildTab(){
     html+=`<div class="sub" style="margin:10px 0 6px"><b>${L[0].it.cost?L[0].it.cost.toLocaleString('es-ES')+' almas':'Nivel '+t}</b></div><div class="items">`+
       L.map(r=>{const t=TR&&!TR.thin&&TR.by[r.it.id];
         const arrow=t&&Math.abs(t.ch)>=0.015?` · <span class="${t.ch>0?'pos':'neg'}">${t.ch>0?'▲ subiendo':'▼ cayendo'} ${sgn(t.ch)} esta semana</span>`:'';
-        return itemCard(r.it,{big:sgn(r.wr-hwr),cls:r.wr>=hwr?'pos':'neg',sub:`<div class="m">${pct(r.pick)} lo compran · min ${r.min}${arrow}</div>`},r.pick>=0.34?'<span class="tag">NÚCLEO</span>':'')}).join('')+`</div>`;
+        return itemCard(r.it,{big:sgn(r.wr-hwr),cls:r.wr>=hwr?'pos':'neg',sub:`<div class="m">${pct(r.pick)} lo compran · min ${r.min}${arrow}</div>`},(r.pick>=0.34?'<span class="tag">NÚCLEO</span>':'')+(()=>{const kf=kitFit(r.it,KP);return kf.fit>=0.5?kitTags(kf.ks):''})())}).join('')+`</div>`;
   });
   // Aguantar: con qué se cura
   const susR=rows.filter(r=>r.it.sus).sort((a,b)=>b.d-a.d).slice(0,6);
@@ -489,25 +499,26 @@ async function plan(H,laneFoes){
   return P;
 }
 function needs(){const N={};[...S.foes].forEach(e=>(S.tags[e]?.th||[]).forEach(k=>(N[k]||(N[k]=[])).push(e)));return N}
-function phaseLists(res,N){
-  const arr=Object.values(res).map(r=>{const m=(r.it.cats||[]).filter(k=>N[k]);return {...r,m,pri:r.score+0.006*m.length}});
-  return {buy:arr.filter(r=>r.score>0.002||(r.m.length&&r.score>-0.002)).sort((a,b)=>b.pri-a.pri).slice(0,6),
+function phaseLists(res,N,KP){
+  const arr=Object.values(res).map(r=>{const m=(r.it.cats||[]).filter(k=>N[k]), kf=kitFit(r.it,KP);return {...r,m,kf,pri:r.score+0.006*m.length+0.004*kf.fit}});
+  return {buy:arr.filter(r=>r.score>0.002||((r.m.length||r.kf.fit>=0.5)&&r.score>-0.002)).sort((a,b)=>b.pri-a.pri).slice(0,6),
     avoid:arr.filter(r=>r.score<-0.004&&!r.m.length).sort((a,b)=>a.score-b.score).slice(0,3)};
 }
 const fn=e=>Array.isArray(e)?'la pareja':(HMAP[e]?.name||e);
 const thTags=m=>(m||[]).map(k=>`<span class="tagt">${TH.find(x=>x.k===k).tag}</span>`).join('');
+const allTags=r=>thTags(r.m)+(r.kf&&r.kf.fit>=0.5?kitTags(r.kf.ks.slice(0,1)):'');
 function chipW(w){const lab={carril:`vs ${fn(w.e)} en carril`,pareja:'vs los dos juntos',eq:`vs ${fn(w.e)}`,fedw:`vs ${fn(w.e)}`,fed:`${fn(w.e)} fed`}[w.kind];
   return `<span class="${w.sd>=0?'pos':'neg'}">${esc(lab)} ${sgn(w.sd)}</span>`}
-const ccard=r=>itemCard(r.it,{big:sgn(r.score),cls:r.score>=0?'pos':'neg',sub:`<div class="m">${r.it.cost?r.it.cost.toLocaleString('es-ES')+' almas · ':''}${r.n.toLocaleString('es-ES')} compras</div><div class="why">${r.why.slice(0,3).map(chipW).join('')}</div>`},thTags(r.m));
-const mini=(r,ph)=>`<span class="mi ${r.it.slot||''}"><img src="${r.it.img}" alt="" loading="lazy">${esc(r.it.name)} <b class="${r.score>=0?'pos':'neg'}">${sgn(r.score)}</b>${ph?` <span class="mute">${ph}</span>`:''}${thTags(r.m)}</span>`;
+const ccard=r=>itemCard(r.it,{big:sgn(r.score),cls:r.score>=0?'pos':'neg',sub:`<div class="m">${r.it.cost?r.it.cost.toLocaleString('es-ES')+' almas · ':''}${r.n.toLocaleString('es-ES')} compras</div><div class="why">${r.why.slice(0,3).map(chipW).join('')}</div>`},allTags(r));
+const mini=(r,ph)=>`<span class="mi ${r.it.slot||''}"><img src="${r.it.img}" alt="" loading="lazy">${esc(r.it.name)} <b class="${r.score>=0?'pos':'neg'}">${sgn(r.score)}</b>${ph?` <span class="mute">${ph}</span>`:''}${allTags(r)}</span>`;
 function bestOf(P,k){const L=[];PH.forEach(ph=>Object.values(P[ph.k].res).forEach(r=>{if(r.it.cats.includes(k))L.push({...r,ph:ph.name})}));
   const by={};L.forEach(r=>{if(!by[r.it.id]||r.score>by[r.it.id].score)by[r.it.id]=r});return Object.values(by).sort((a,b)=>b.score-a.score)}
 function foeChips(list){return `<div class="row">`+list.map(e=>{const t=S.tags[e]||{};
   return `<span class="chip"><img src="${HMAP[e].img}" alt="">${esc(fn(e))}${t.mine&&S.mode!=='coach'?' <span class="tag">CARRIL</span>':''}${t.ln&&S.mode==='coach'?` <span class="mute">c${t.ln}</span>`:''}${t.fed&&S.foes.has(e)?' <span class="tagt">FED</span>':''}</span>`}).join('')+`</div>`}
-const NOTE=`<div class="sub" style="margin-top:12px">La cifra son puntos de victoria que gana ese objeto, comprado en esa fase, contra esos rivales, respecto a lo que gana normalmente con ese héroe en esa misma fase. <b>Carril</b>: solo partidas en las que ese rival iba en la misma línea (y la pareja exacta, si hay partidas). <b>Va fed</b>: ese rival pesa el doble y se suma lo que funcionó en partidas en las que su héroe acabó con 35.000+ almas en menos de 35 minutos. Las etiquetas rojas responden a lo que marcaste que hacen: suben puestos aunque la cifra sea algo menor, pero la cifra es siempre el dato real. Con pocas partidas todo se encoge hacia cero.</div>`;
+const NOTE=`<div class="sub" style="margin-top:12px">La cifra son puntos de victoria que gana ese objeto, comprado en esa fase, contra esos rivales, respecto a lo que gana normalmente con ese héroe en esa misma fase. <b>Carril</b>: solo partidas en las que ese rival iba en la misma línea (y la pareja exacta, si hay partidas). <b>Va fed</b>: ese rival pesa el doble y se suma lo que funcionó en partidas en las que su héroe acabó con 35.000+ almas en menos de 35 minutos. Las etiquetas rojas responden a lo que marcaste que hacen; las moradas (KIT) marcan objetos que potencian lo que escala en las habilidades de tu héroe. Las dos suben puestos aunque la cifra sea algo menor (los counters algo más que el kit), pero la cifra es siempre el dato real. Con pocas partidas todo se encoge hacia cero.</div>`;
 async function counterTab(){
   const H=S.hero, foes=[...S.foes], L=foes.filter(e=>S.tags[e]?.mine), N=needs();
-  const [P,LS]=await Promise.all([plan(H,L),L.length?laneSouls(H,L).catch(()=>''):'']);
+  const [P,LS,KP]=await Promise.all([plan(H,L),L.length?laneSouls(H,L).catch(()=>''):'',heroKit(H)]);
   let html=`<div class="panel"><div class="t2"><h2>${esc(HMAP[H].name)} contra su equipo</h2><button class="copy" data-share>Copiar enlace del plan</button></div>${foeChips(foes)}`;
   if(!L.length) html+=`<div class="warn">Marca quién va en tu carril (arriba, «En mi carril») para afinar la fase de carril. Mientras tanto la calculo contra el equipo entero.</div>`;
   else if(P.carril.n<300) html+=`<div class="warn">Pocas partidas de ${esc(HMAP[H].name)} contra ${L.map(fn).join(' y ')} en la misma línea: la fase de carril es orientativa.</div>`;
@@ -518,7 +529,7 @@ async function counterTab(){
     ks.forEach(k=>{const T=TH.find(x=>x.k===k), b=bestOf(P,k).slice(0,3);
       html+=`<div class="need"><div><b>${T.name}</b> <span class="mute">(${N[k].map(fn).join(', ')}) → ${T.need}</span></div><div class="row">${b.map(r=>mini(r,r.ph)).join('')||'<span class="sub">Sin datos suficientes de esos objetos con tu héroe.</span>'}</div></div>`});
   }
-  html+=`<div class="cols3">`+PH.map(ph=>{const p=P[ph.k], {buy,avoid}=phaseLists(p.res,N);
+  html+=`<div class="cols3">`+PH.map(ph=>{const p=P[ph.k], {buy,avoid}=phaseLists(p.res,N,KP);
     return `<div><h3>${ph.name} <span class="mute">· ${ph.sub}</span></h3>${ph.k==='carril'?`<div class="sub" style="margin-bottom:6px">${p.lane?'Contra '+L.map(fn).join(' y '):'Contra el equipo entero'}</div>`:''}
     ${buy.length?'<div class="items" style="grid-template-columns:1fr">'+buy.map(ccard).join('')+'</div>':'<div class="sub">Nada destaca: sigue la build del meta.</div>'}
     ${avoid.length?`<div class="sub neg" style="margin:10px 0 6px"><b>Evítalo</b></div><div class="items" style="grid-template-columns:1fr">${avoid.map(ccard).join('')}</div>`:''}</div>`}).join('')+`</div>`;
@@ -526,7 +537,7 @@ async function counterTab(){
 }
 async function coachTab(){
   const allies=[...S.allies], foes=[...S.foes], N=needs(), ln=id=>S.tags[id]?.ln||0;
-  const plans=await Promise.all(allies.map(a=>plan(a,foes.filter(e=>ln(a)&&ln(e)===ln(a))).catch(e=>({err:e.message}))));
+  const [plans,kits]=await Promise.all([Promise.all(allies.map(a=>plan(a,foes.filter(e=>ln(a)&&ln(e)===ln(a))).catch(e=>({err:e.message})))),Promise.all(allies.map(heroKit))]);
   let html=`<div class="panel"><div class="t2"><h2>Plan de compras del equipo</h2><button class="copy" data-share>Copiar enlace del plan</button></div>
     <div class="sub" style="margin-bottom:4px">Mi equipo</div>${foeChips(allies)}<div class="sub" style="margin:8px 0 4px">Su equipo</div>${foeChips(foes)}`;
   const ks=Object.keys(N);
@@ -541,11 +552,80 @@ async function coachTab(){
   allies.forEach((a,i)=>{const P=plans[i], L=foes.filter(e=>ln(a)&&ln(e)===ln(a));
     html+=`<div class="build"><div class="t"><b>${esc(fn(a))}</b><span class="mute">${L.length?'Carril contra '+L.map(fn).join(' y '):'Sin carril marcado: carril contra el equipo entero'}</span></div>`;
     if(P.err){html+=`<div class="warn err">No pude consultar a ${esc(fn(a))}: ${esc(P.err)}</div></div>`;return}
-    html+=`<div class="cols3">`+PH.map(ph=>{const {buy,avoid}=phaseLists(P[ph.k].res,N);
+    html+=`<div class="cols3">`+PH.map(ph=>{const {buy,avoid}=phaseLists(P[ph.k].res,N,kits[i]);
       return `<div class="cat"><div class="cn">${ph.name} · ${ph.sub}</div><div class="minis">${buy.slice(0,4).map(r=>mini(r)).join('')||'<span class="sub">Nada destaca: build del meta.</span>'}</div>${avoid.length?`<div class="cn neg" style="margin-top:4px">Evita: ${avoid.slice(0,2).map(r=>esc(r.it.name)).join(', ')}</div>`:''}</div>`}).join('')+`</div></div>`;
   });
   return html+NOTE+'</div>';
 }
+// ---------- Potenciar el kit: qué escala en las habilidades del héroe y qué objeto lo sube ----------
+const KIT=[
+  {k:'esp',name:'Daño espiritual',tag:'KIT · ESPÍRITU',what:'poder espiritual y bajar la resistencia espiritual del rival'},
+  {k:'cd',name:'Recargas largas',tag:'KIT · RECARGA',what:'reducción del tiempo de recarga'},
+  {k:'dur',name:'Efectos con duración',tag:'KIT · DURACIÓN',what:'duración de las habilidades'},
+  {k:'carg',name:'Habilidades con cargas',tag:'KIT · CARGAS',what:'cargas extra y recarga entre cargas'},
+  {k:'alc',name:'Alcance de lanzamiento',tag:'KIT · ALCANCE',what:'alcance de las habilidades'},
+  {k:'rad',name:'Áreas de efecto',tag:'KIT · RADIO',what:'radio de las habilidades'},
+  {k:'arma',name:'Habilidades que usan el arma',tag:'KIT · ARMA',what:'daño del arma, cadencia y munición'},
+  {k:'melee',name:'Golpes cuerpo a cuerpo',tag:'KIT · MELEE',what:'daño cuerpo a cuerpo'},
+  {k:'cura',name:'Curaciones propias',tag:'KIT · CURA',what:'potenciar la curación que das'}];
+const KN=Object.fromEntries(KIT.map(x=>[x.k,x]));
+const num=x=>{const n=parseFloat(String(x&&typeof x==='object'?x.value:x));return isNaN(n)?0:n};
+// Qué parte del kit potencia un objeto (solo sus bonos pasivos y unos pocos activos inequívocos).
+function kitOf(i){
+  const P=i.properties||{}, c=i.class_name||'', s=[];
+  const v=k=>{const p=P[k];if(p&&typeof p==='object'&&(p.usage_flags||[]).includes('ConditionallyApplied'))return 0;return num(p)};
+  if(['TechPower','SpiritPower','BonusSpirit','ImbuedTechPower','SpiritPowerInnate','TechArmorDamageReduction','MagicResistReduction'].some(k=>v(k)>0)) s.push('esp');
+  if(v('CooldownReduction')>0||/ability_refresher/.test(c)) s.push('cd');
+  if(v('BonusAbilityDurationPercent')>0||/duration_extender/.test(c)) s.push('dur');
+  if(['BonusAbilityCharges','CooldownBetweenChargeReduction','BonusSpiritForChargedAbilities','CooldownReductionOnChargedAbilities'].some(k=>v(k)>0)||/omnicharge/.test(c)) s.push('carg');
+  if(v('TechRangeMultiplier')>=10) s.push('alc');
+  if(v('TechRadiusMultiplier')>=10) s.push('rad');
+  if(i.item_slot_type==='weapon'&&['BaseAttackDamagePercent','BonusFireRate','BonusClipSizePercent','BulletArmorReduction','BulletResistReduction'].some(k=>v(k)>0)) s.push('arma');
+  if(['BonusMeleeDamagePercent','BonusHeavyMeleeDamage','MeleeDistanceScale'].some(k=>v(k)>0)) s.push('melee');
+  if(v('HealAmpCastPercent')>0) s.push('cura');
+  return s;
+}
+// Perfil del kit: cuánto de cada cosa hay en las 4 habilidades (0-1), y en cuáles.
+function kitProfile(H,assets){
+  const sig=HMAP[H]?.sig||[], A=(assets||[]).filter(a=>a.type==='ability'&&sig.includes(a.class_name));
+  const hit={}; KIT.forEach(x=>hit[x.k]=[]);
+  let cds=[];
+  A.forEach(a=>{
+    const P=a.properties||{}, name=clean(a.name), has={};
+    const mark=(k,w)=>{if(!(has[k]>=w))has[k]=w};
+    const up={};(a.upgrades||[]).forEach(u=>(u.property_upgrades||[]).forEach(p=>up[p.name]=(up[p.name]||0)+num(p.bonus)));
+    for(const k in P){const p=P[k]; if(!p||typeof p!=='object') continue;
+      const base=num(p.value), val=base+(up[k]||0); if(val<=0) continue;
+      const w=base>0?1:0.6, debuff=/Slow|Reduction|Penalty/.test(k); // 0,6 = solo lo da una mejora de la habilidad
+      const sf=p.scale_function||{}, t=sf.specific_stat_scale_type, ss=sf.scaling_stats||[], css=p.css_class||'';
+      if((t==='ETechPower'||css==='tech_damage')&&num(sf.stat_scale)>0) mark('esp',w);
+      if(t==='ETechDuration'||ss.includes('ETechDuration')||ss.includes('EChannelDuration')) mark('dur',w);
+      if(t==='ETechRange'&&k!=='AbilityCastRange'||k==='AbilityCastRange'&&val>=8) mark('alc',w);
+      if(t==='ETechRadius') mark('rad',w);
+      if(!debuff&&(['EWeaponPower','EBaseWeaponDamageIncrease','EWeaponDamageScale'].includes(t)||css==='bullet_damage'||css==='fire_rate'||/Bullet.*PerHit|PerBullet/.test(k))) mark('arma',w);
+      if(t==='ELightMeleeDamage'||t==='EMeleeRange'||css==='melee_damage') mark('melee',w);
+      if(!debuff&&(t==='EHealingOutput'||css==='healing')) mark('cura',w);
+      if(k==='AbilityCharges'&&val>1) mark('carg',up[k]?0.6:1);
+      if(k==='AbilityCooldown') cds.push({cd:val,ult:a.ability_type==='ultimate'});
+    }
+    for(const k in has) hit[k].push({name:has[k]<1?name+' (con mejora)':name,w:has[k]});
+  });
+  const n=Math.max(A.length,1), W={}, cnt=k=>hit[k].reduce((s,x)=>s+x.w,0);
+  W.esp=Math.min(1,cnt('esp')/3); W.dur=Math.min(1,cnt('dur')/4); W.alc=Math.min(1,cnt('alc')/4);
+  W.rad=Math.min(1,cnt('rad')/3); W.arma=Math.min(1,cnt('arma')/2); W.melee=Math.min(1,cnt('melee')/1.5);
+  W.cura=Math.min(1,cnt('cura')/2); W.carg=Math.min(1,cnt('carg'));
+  const nc=cds.filter(x=>!x.ult), avg=nc.length?nc.reduce((s,x)=>s+x.cd,0)/nc.length:0;
+  W.cd=avg?Math.max(0.3,Math.min(1,(avg-8)/30)):0;
+  const out={};KIT.forEach(x=>{if(W[x.k]>=0.25) out[x.k]={w:W[x.k],abil:hit[x.k].map(h=>h.name),avg:x.k==='cd'?avg:null}});
+  KIT.forEach(x=>{if(out[x.k])out[x.k].n=hit[x.k].length});
+  return {tr:out,n:A.length};
+}
+// Encaje de un objeto con el kit: suma de los pesos que toca (tope 1) y qué toca.
+function kitFit(it,KP){if(!KP)return {fit:0,ks:[]};const ks=(it.kit||[]).filter(k=>KP.tr[k]);
+  return {fit:Math.min(1,ks.reduce((s,k)=>s+KP.tr[k].w,0)),ks:ks.sort((a,b)=>KP.tr[b].w-KP.tr[a].w)}}
+async function heroKit(H){try{return kitProfile(H,await get(`/v1/assets/items/by-hero-id/${H}?language=spanish`))}catch(e){return null}}
+const kitTags=ks=>(ks||[]).slice(0,2).map(k=>`<span class="tagk">${KN[k].tag}</span>`).join('');
+
 // ---------- Aguantar, habilidades y almas de carril ----------
 function sus(i){
   const v=k=>{const p=(i.properties||{})[k];const x=parseFloat(String(p&&typeof p==='object'?p.value:p));return isNaN(x)?0:x};
@@ -556,6 +636,27 @@ function sus(i){
   return null;
 }
 const SUSN={robo:'Robo de vida',cura:'Curación',regen:'Regeneración'};
+// Objetos que suben lo que escala en sus habilidades. La cifra es siempre el dato real; el encaje solo sube puestos.
+function kitSection(KP,its,N,hwr){
+  if(!KP||!Object.keys(KP.tr).length) return '<div class="sub">No pude leer las habilidades de este héroe ahora mismo.</div>';
+  const T=Object.entries(KP.tr).sort((a,b)=>b[1].w-a[1].w);
+  let h=`<div class="sub" style="margin-bottom:6px">Sale de los números de sus 4 habilidades y de sus mejoras: qué escala con qué. Cuanto más llena la barra, más parte del kit se beneficia.</div><div class="kit">`+
+    T.map(([k,t])=>`<div class="k"><b>${KN[k].name}</b>${k==='cd'?` <span class="mute">· ${Math.round(t.avg)} s de media</span>`:''}<div class="bar"><i style="width:${Math.round(t.w*100)}%"></i></div><span class="mute">${k==='cd'?'Recarga media de sus 3 habilidades básicas':esc(t.abil.join(', '))} → ${KN[k].what}</span></div>`).join('')+`</div>`;
+  const rows=its.map(r=>{const it=IMAP[r.item_id];if(!it||r.matches<60)return null;const kf=kitFit(it,KP);if(!kf.fit)return null;
+    const wr=r.wins/r.matches,pick=r.matches/N,d=(wr-hwr)*r.matches/(r.matches+300);
+    return {it,wr,pick,d,kf,min:Math.round((r.avg_buy_time_s||0)/60)}}).filter(Boolean);
+  const card=r=>itemCard(r.it,{big:sgn(r.wr-hwr),cls:r.wr>=hwr?'pos':'neg',sub:`<div class="m">${pct(r.pick)} lo compran · min ${r.min}</div><div class="why">${r.kf.ks.slice(0,3).map(k=>`<span>${esc(KN[k].name)}${k==='cd'?'':` · ${KP.tr[k].n} de ${KP.n}`}</span>`).join('')}</div>`},
+    kitTags(r.kf.ks)+(r.pick<0.1&&r.d>0.003?'<span class="tag">POCO VISTO</span>':''));
+  const pri=r=>r.d+0.006*r.kf.fit;
+  const bad=rows.filter(r=>r.kf.fit>=0.5&&r.d<=-0.01&&r.pick>=0.03).sort((a,b)=>a.d-b.d).slice(0,3);
+  h+=`<div class="sub" style="margin-bottom:8px">Los 2 objetos de cada coste que más suben su kit: lo que ganan con este héroe más un empujón por lo bien que encajan. Por coste para no comparar un objeto de 800 con uno de 6.000 (los caros se compran con la partida ya ganada y salen inflados). «Poco visto» = casi nadie lo compra y aun así gana: candidato a probar.</div>`;
+  let any=0;
+  [1,2,3,4,5].forEach(t=>{const L=rows.filter(r=>r.it.tier===t&&r.d>-0.005).sort((a,b)=>pri(b)-pri(a)).slice(0,2);if(!L.length)return;any=1;
+    h+=`<div class="sub" style="margin:10px 0 6px"><b>${L[0].it.cost?L[0].it.cost.toLocaleString('es-ES')+' almas':'Nivel '+t}</b></div><div class="items">${L.map(card).join('')}</div>`});
+  if(!any) h+='<div class="sub">Ningún objeto de su kit tiene partidas suficientes con estos filtros.</div>';
+  if(bad.length) h+=`<div class="sub neg" style="margin:10px 0 6px"><b>Encajan en el papel pero hoy pierden</b></div><div class="items">${bad.map(card).join('')}</div>`;
+  return h;
+}
 // Camino de habilidades: en cada paso, la mejora que más gana entre las que hace al menos 1 de cada 10.
 function abilitySection(H,hwr,abil){
   if(!abil) return '<div class="sub">No pude leer el orden de habilidades ahora mismo.</div>';
