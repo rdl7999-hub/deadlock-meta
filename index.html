@@ -211,6 +211,7 @@ async function init(){
       .sort((a,b)=>a.name.localeCompare(b.name,'es'));
     HEROES.forEach(h=>HMAP[h.id]=h);
     items.forEach(i=>IMAP[i.id]={id:i.id,name:clean(i.name),slot:i.item_slot_type,tier:i.item_tier,cost:i.cost,img:i.shop_image_webp||i.shop_image||i.image_webp,active:i.is_active_item,cats:cats(i),sus:sus(i),kit:kitOf(i)});
+    {const CN={};items.forEach(i=>CN[i.class_name]=i.id);items.forEach(i=>(i.component_items||[]).forEach(c=>{const x=IMAP[CN[c]];if(x)(x.ups||(x.ups=[])).push(i.id)}));}
     PATCHES=patches;
   }catch(e){$('#out').innerHTML=`<div class="warn err">No pude cargar los datos base: ${esc(e.message)}. Recarga en un rato.</div>`;return}
   if(S.hero&&!HMAP[S.hero]) S.hero=null;
@@ -363,6 +364,7 @@ async function buildTab(){
   let html=`<div class="panel"><h2>${esc(HMAP[H].name)} · ${pct(hwr)} de victorias en ${N.toLocaleString('es-ES')} partidas<a class="guia" href="duo.html#heroe-id-${H}">Ficha completa en la guía →</a></h2>`;
   if(N<1500) html+=`<div class="warn">Pocas partidas todavía: los porcentajes se mueven mucho. Amplía fechas o baja el rango si algo no te cuadra.</div>`;
 
+  html+=`<h3>Qué tocó el parche a ${esc(HMAP[H].name)}</h3>`+await patchSection(H,its,N).catch(()=>'<div class="sub">No pude comparar las versiones del juego ahora mismo.</div>');
   // Qué ha cambiado: últimos 7 días frente a las 3 semanas anteriores
   html+=`<h3>Qué ha cambiado: últimos 7 días frente a las 3 semanas anteriores</h3>`;
   if(!TR) html+=`<div class="sub">No pude comparar semanas ahora mismo.</div>`;
@@ -417,6 +419,7 @@ async function buildTab(){
   const susR=rows.filter(r=>r.it.sus).sort((a,b)=>b.d-a.d).slice(0,6);
   html+=`<h3>Aguantar: con qué se cura este héroe</h3><div class="sub" style="margin-bottom:8px">Robo de vida, curaciones y regeneración que compra quien juega ${esc(HMAP[H].name)}, ordenados por lo que le suman. Si el rival compra anticuración rinden menos: entonces mezcla con vida y resistencias.</div>`+
     (susR.length?'<div class="items">'+susR.map(r=>itemCard(r.it,{big:sgn(r.wr-hwr),cls:r.wr>=hwr?'pos':'neg',sub:`<div class="m">${SUSN[r.it.sus]} · ${pct(r.pick)} lo compran · min ${r.min}</div>`})).join('')+'</div>':'<div class="sub">Casi nadie compra curación con este héroe con estos filtros.</div>');
+  html+=`<h3>Qué vender para hacer hueco</h3>`+sellSection(its,N,HMAP[H].name);
   return html+'</div>';
 }
 
@@ -435,6 +438,90 @@ function trendOf(H,t){
   return {list,by};
 }
 
+// ---------- Qué tocó el parche: datos del juego de la versión de antes frente a la de ahora ----------
+// Las fechas de versión vienen en hora del Pacífico (la de Valve).
+const laUTC=s=>{const g=Date.parse(s+'Z');if(isNaN(g))return 0;const p=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'America/Los_Angeles',hourCycle:'h23',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'}).formatToParts(g).map(x=>[x.type,x.value]));
+  return (2*g-Date.UTC(+p.year,p.month-1,+p.day,+p.hour,+p.minute,+p.second))/1000};
+const pv=p=>p&&typeof p==='object'?p.value:p, numOrNull=x=>{const n=parseFloat(x);return isNaN(n)?null:n};
+const pretty=k=>String(k).replace(/^MODIFIER_VALUE_/,'').replace(/^E(?=[A-Z])/,'').replace(/_/g,' ').replace(/([a-z])([A-Z])/g,'$1 $2').toLowerCase().replace(/^./,c=>c.toUpperCase());
+const fmtV=(v,p)=>v==null||v===''?'—':/[a-z%]$/i.test(String(v))?String(v):v+((p&&p.postfix)||'');
+const HSN={max_health:'Vida',max_move_speed:'Velocidad de movimiento',sprint_speed:'Velocidad de sprint',light_melee_damage:'Golpe ligero',heavy_melee_damage:'Golpe fuerte',base_health_regen:'Regeneración de vida',stamina:'Aguante',
+  MODIFIER_VALUE_BASE_BULLET_DAMAGE_FROM_LEVEL:'Daño de bala que gana por nivel',MODIFIER_VALUE_BASE_HEALTH_FROM_LEVEL:'Vida que gana por nivel',MODIFIER_VALUE_BASE_MELEE_DAMAGE_FROM_LEVEL:'Daño cuerpo a cuerpo que gana por nivel',MODIFIER_VALUE_TECH_POWER:'Poder espiritual que gana por nivel',
+  ETechArmorDamageReduction:'Resistencia espiritual por cada punto de poder espiritual',EBulletArmorDamageReduction:'Resistencia a balas por cada punto de poder espiritual'};
+const PLN={StackingPenaltyAnchorPercent:'Si se acumulan varios del mismo efecto, cuánto rinde el siguiente (%)',BarrierWindow:'Ventana de barrera (s)',SilenceWindow:'Ventana de silencio (s)',FireWindow:'Ventana de fuego (s)'};
+const WPN={bullet_damage:'Daño por bala',bullets:'Balas por disparo',clip_size:'Cargador',reload_duration:'Recarga (s)',shots_per_second:'Disparos por segundo',damage_per_second:'Daño por segundo',bullet_speed:'Velocidad de bala',crit_bonus_start:'Multiplicador de crítico (cabeza)',damage_falloff_start_range:'Distancia a la que empieza a perder daño'};
+function diffProps(a,b){
+  const out=[], A=(a&&a.properties)||{}, B=(b&&b.properties)||{};
+  for(const k of new Set([...Object.keys(A),...Object.keys(B)])){
+    const x=A[k], y=B[k], q=y||x, lab=q.label||q.postvalue_label||PLN[k]||pretty(k);
+    if(String(pv(x)??'')!==String(pv(y)??'')&&(numOrNull(pv(x))!=null||numOrNull(pv(y))!=null)) out.push({lab,o:fmtV(pv(x),x),n:fmtV(pv(y),y)});
+    const sx=x&&x.scale_function&&x.scale_function.stat_scale, sy=y&&y.scale_function&&y.scale_function.stat_scale;
+    if(sx!=null&&sy!=null&&sx!==sy) out.push({lab:lab+' · cuánto escala',o:sx,n:sy});
+  }
+  const U=(u,i)=>Object.fromEntries((((u||[])[i]||{}).property_upgrades||[]).map(z=>[z.name,z.bonus]));
+  for(let i=0;i<3;i++){const ua=U(a&&a.upgrades,i), ub=U(b&&b.upgrades,i);
+    for(const k of new Set([...Object.keys(ua),...Object.keys(ub)])) if(String(ua[k])!==String(ub[k])){const q=B[k]||A[k]||{};out.push({lab:`Mejora ${i+1}: ${q.label||pretty(k)}`,o:fmtV(ua[k],q),n:fmtV(ub[k],q)})}}
+  if(a&&b&&a.cost!=null&&b.cost!=null&&a.cost!==b.cost) out.push({lab:'Precio',o:a.cost,n:b.cost});
+  return out;
+}
+function diffHero(a,b){const out=[];
+  const D=(x,y,f)=>{for(const k of new Set([...Object.keys(x||{}),...Object.keys(y||{})])){const o=f((x||{})[k]), n=f((y||{})[k]);
+    if(String(o)!==String(n)&&(numOrNull(o)!=null||numOrNull(n)!=null)) out.push({lab:HSN[k]||pretty(k),o:o??'—',n:n??'—'})}};
+  D(a.starting_stats,b.starting_stats,v=>v&&typeof v==='object'?v.value:v);
+  D(a.standard_level_up_upgrades,b.standard_level_up_upgrades,v=>v);
+  D(a.scaling_stats,b.scaling_stats,v=>v&&v.scale);
+  return out;
+}
+async function patchSection(H,its,N){
+  const V=await get('/v1/assets/steam-info/all');
+  const vs=V.map(v=>({v:v.client_version,t:laUTC(v.version_datetime)})).sort((a,b)=>b.v-a.v);
+  // «Antes» = la última versión publicada más de 6 h antes de la fecha elegida en «Datos desde» (el build de un parche sale horas antes de las notas).
+  const cur=vs[0], old=vs.find(x=>x.t&&x.t<S.since-6*3600), name=esc(HMAP[H].name);
+  if(!old||old.v===cur.v) return '<div class="sub">No hay versión del juego anterior a esa fecha con la que comparar.</div>';
+  const L='language=spanish', cv='&client_version='+old.v, fd=t=>new Date(t*1000).toLocaleDateString('es-ES',{day:'numeric',month:'short'});
+  const [hA,hB,aA,aB,uA,uB]=await Promise.all([get(`/v1/assets/heroes/${H}?${L}${cv}`),get(`/v1/assets/heroes/${H}?${L}`),
+    get(`/v1/assets/items/by-hero-id/${H}?${L}${cv}`),get(`/v1/assets/items/by-hero-id/${H}?${L}`),
+    get(`/v1/assets/items/by-type/upgrade?${L}${cv}`),get('/v1/assets/items/by-type/upgrade?language=spanish')]);
+  const w=hB.items&&hB.items.weapon_primary;
+  const [wA,wB]=w?await Promise.all([get(`/v1/assets/items/${w}?${L}${cv}`),get(`/v1/assets/items/${w}?${L}`)]).catch(()=>[null,null]):[null,null];
+  const grp=[], byC=l=>Object.fromEntries((l||[]).map(x=>[x.class_name,x]));
+  const hd=diffHero(hA,hB); if(hd.length) grp.push({n:'El héroe',ch:hd});
+  if(wA&&wB){const WI=wA.weapon_info||{}, WJ=wB.weapon_info||{}, r=x=>Math.round(x*100)/100;
+    const d=Object.entries(WPN).filter(([k])=>WI[k]!=null&&WJ[k]!=null&&r(WI[k])!==r(WJ[k])).map(([k,lab])=>({lab,o:r(WI[k]),n:r(WJ[k])})).concat(diffProps(wA,wB));
+    if(d.length) grp.push({n:'Su arma',ch:d})}
+  const AA=byC(aA); (aB||[]).forEach(x=>{if(!AA[x.class_name])return;const d=diffProps(AA[x.class_name],x);if(d.length) grp.push({n:clean(x.name),ch:d})});
+  const UA=byC(uA), pick={}; its.forEach(r=>pick[r.item_id]=r.matches/N);
+  const ch=(uB||[]).filter(x=>x.cost&&UA[x.class_name]).map(x=>({it:IMAP[x.id],d:diffProps(UA[x.class_name],x),p:pick[x.id]||0})).filter(x=>x.it&&x.d.length);
+  const mine=ch.filter(x=>x.p>=0.03).sort((a,b)=>b.p-a.p), rest=ch.length-mine.length;
+  const li=c=>`<li>${esc(c.lab)}: ${esc(c.o)} → <b>${esc(c.n)}</b></li>`;
+  let h=`<div class="sub" style="margin-bottom:8px">Datos del propio juego: versión ${old.v} (${fd(old.t)}) frente a la actual ${cur.v}. Sale todo lo que cambió, también lo que Valve no pone en las notas.</div>`;
+  if(!grp.length&&!mine.length) return h+`<div class="sub">Nada: ni ${name} ni los objetos que compra han cambiado desde entonces${rest?` (cambiaron ${rest} objetos que casi no compra)`:''}. Si ahora rinde distinto, es por cómo se juega, no por los números.</div>`;
+  h+=grp.map(g=>`<div class="need"><b>${esc(g.n)}</b><ul class="tips">${g.ch.slice(0,8).map(li).join('')}</ul></div>`).join('');
+  if(mine.length) h+=`<div class="need"><b>Objetos que compra</b>`+mine.slice(0,10).map(x=>`<div class="row" style="margin-top:6px"><span class="mi ${x.it.slot||''}"><img src="${x.it.img}" alt="" loading="lazy">${esc(x.it.name)} <span class="mute">${pct(x.p)} lo compran</span></span></div><ul class="tips">${x.d.slice(0,5).map(li).join('')}</ul>`).join('')+`</div>`;
+  if(rest) h+=`<div class="sub" style="margin-top:6px">Además cambiaron ${rest} objetos que casi no se compran con ${name}.</div>`;
+  return h;
+}
+
+// ---------- Qué vender: ventas reales; los componentes que desaparecen al mejorarlos no cuentan ----------
+function sellSection(its,N,name){
+  const by={};its.forEach(r=>by[r.item_id]=r);
+  const L=its.map(r=>{const it=IMAP[r.item_id];if(!it||!r.matches||r.matches/N<0.03||!r.sold||!r.avg_sell_time_s)return null;
+    return {it,r,rate:r.sold/r.matches,pick:r.matches/N,buy:Math.round((r.avg_buy_time_s||0)/60),sell:Math.round(r.avg_sell_time_s/60)}}).filter(x=>x&&x.rate>=0.15);
+  const up=L.filter(x=>x.it.ups).map(x=>{const p=x.it.ups.map(id=>({id,m:(by[id]||{}).matches||0})).sort((a,b)=>b.m-a.m)[0];return {...x,to:p&&p.m?IMAP[p.id]:null}})
+    .filter(x=>x.to&&x.rate>=0.5).sort((a,b)=>b.pick-a.pick).slice(0,5);
+  const sold=L.filter(x=>!x.it.ups).sort((a,b)=>b.rate*Math.sqrt(b.pick)-a.rate*Math.sqrt(a.pick)).slice(0,6).sort((a,b)=>a.sell-b.sell);
+  const swap=x=>its.filter(r=>{const it=IMAP[r.item_id];return it&&it.id!==x.it.id&&it.cost>=3000&&r.matches/N>=0.02&&r.avg_buy_time_s&&Math.abs(r.avg_buy_time_s-x.r.avg_sell_time_s)<=180})
+    .sort((a,b)=>b.matches-a.matches).slice(0,2).map(r=>IMAP[r.item_id]);
+  const P=x=>Math.round(x*100)+' %';
+  let h=`<div class="sub" style="margin-bottom:8px">Las ranuras se llenan a media partida y hay que hacer hueco. Esto es lo que venden los jugadores de ${esc(name)} y en qué minuto, de lo primero a lo último. «Hacia ese minuto compran» es lo que más se compra en ese mismo momento: suele ser lo que ocupa el hueco, no una regla fija.</div>`;
+  h+=sold.length?'<div class="items">'+sold.map(x=>{const sw=swap(x);
+    return itemCard(x.it,{big:'min '+x.sell,cls:'',sub:`<div class="m">${P(x.rate)} lo venden · lo compran hacia el min ${x.buy}</div>${sw.length?`<div class="m">Hacia ese minuto compran: <b>${sw.map(i=>esc(i.name)).join('</b>, <b>')}</b></div>`:''}`},`<span class="tag">${x.sell<25?'MEDIA':'FINAL'}</span>`)}).join('')+'</div>'
+    :'<div class="sub">Con estos filtros casi nadie vende nada con este héroe: aguanta lo que tengas.</div>';
+  if(up.length) h+=`<div class="sub" style="margin:12px 0 6px"><b>Esto no se vende: se mejora</b> · al subirlo de nivel el objeto pequeño desaparece y no pierdes almas</div><div class="row">`+
+    up.map(x=>`<span class="mi ${x.it.slot||''}"><img src="${x.it.img}" alt="" loading="lazy">${esc(x.it.name)} → <b>${esc(x.to.name)}</b> <span class="mute">min ${x.sell}</span></span>`).join('')+'</div>';
+  return h;
+}
+
 // ---------- Contra su equipo: fases, carril, fed y lo que hacen ----------
 const TH=[
   {k:'cura',short:'Se cura',name:'Se cura mucho',need:'anticuración',tag:'ANTICURACIÓN',n:2},
@@ -447,7 +534,7 @@ const TH=[
 function cats(i){
   const v=k=>{const p=(i.properties||{})[k];const x=parseFloat(String(p&&typeof p==='object'?p.value:p));return isNaN(x)?0:x};
   const c=i.class_name||'', s=[];
-  if(v('HealAmpReceivePenaltyPercent')<0) s.push('cura');
+  if(v('HealAmpReceivePenaltyPercent')<0&&!v('DeathImmunityDuration')) s.push('cura'); // Cheat Death se castiga a sí mismo, no al rival
   if((v('BulletResist')>=12&&!/shredder/.test(c))||v('FireRateSlow')>0) s.push('balas');
   if((v('TechResist')>=10&&!/vulnerability|exposure/.test(c))||v('SilenceDuration')>0) s.push('esp');
   if(v('MeleeResistPercent')>0) s.push('melee');
@@ -518,7 +605,7 @@ function foeChips(list){return `<div class="row">`+list.map(e=>{const t=S.tags[e
 const NOTE=`<div class="sub" style="margin-top:12px">La cifra son puntos de victoria que gana ese objeto, comprado en esa fase, contra esos rivales, respecto a lo que gana normalmente con ese héroe en esa misma fase. <b>Carril</b>: solo partidas en las que ese rival iba en la misma línea (y la pareja exacta, si hay partidas). <b>Va fed</b>: ese rival pesa el doble y se suma lo que funcionó en partidas en las que su héroe acabó con 35.000+ almas en menos de 35 minutos. Las etiquetas rojas responden a lo que marcaste que hacen; las moradas (KIT) marcan objetos que potencian lo que escala en las habilidades de tu héroe. Las dos suben puestos aunque la cifra sea algo menor (los counters algo más que el kit), pero la cifra es siempre el dato real. Con pocas partidas todo se encoge hacia cero.</div>`;
 async function counterTab(){
   const H=S.hero, foes=[...S.foes], L=foes.filter(e=>S.tags[e]?.mine), N=needs();
-  const [P,LS,KP]=await Promise.all([plan(H,L),L.length?laneSouls(H,L).catch(()=>''):'',heroKit(H)]);
+  const [P,LS,KP,its,hs]=await Promise.all([plan(H,L),L.length?laneSouls(H,L).catch(()=>''):'',heroKit(H),get(`/v1/analytics/item-stats?hero_id=${H}&${filt()}`).catch(()=>null),get(`/v1/analytics/hero-stats?${filt()}`).catch(()=>null)]);
   let html=`<div class="panel"><div class="t2"><h2>${esc(HMAP[H].name)} contra su equipo</h2><button class="copy" data-share>Copiar enlace del plan</button></div>${foeChips(foes)}`;
   if(!L.length) html+=`<div class="warn">Marca quién va en tu carril (arriba, «En mi carril») para afinar la fase de carril. Mientras tanto la calculo contra el equipo entero.</div>`;
   else if(P.carril.n<300) html+=`<div class="warn">Pocas partidas de ${esc(HMAP[H].name)} contra ${L.map(fn).join(' y ')} en la misma línea: la fase de carril es orientativa.</div>`;
@@ -533,6 +620,8 @@ async function counterTab(){
     return `<div><h3>${ph.name} <span class="mute">· ${ph.sub}</span></h3>${ph.k==='carril'?`<div class="sub" style="margin-bottom:6px">${p.lane?'Contra '+L.map(fn).join(' y '):'Contra el equipo entero'}</div>`:''}
     ${buy.length?'<div class="items" style="grid-template-columns:1fr">'+buy.map(ccard).join('')+'</div>':'<div class="sub">Nada destaca: sigue la build del meta.</div>'}
     ${avoid.length?`<div class="sub neg" style="margin:10px 0 6px"><b>Evítalo</b></div><div class="items" style="grid-template-columns:1fr">${avoid.map(ccard).join('')}</div>`:''}</div>`}).join('')+`</div>`;
+  const me=hs&&hs.find(x=>x.hero_id===H);
+  if(its&&me&&me.matches>=50) html+=`<h3>Qué vender para hacer hueco</h3>`+sellSection(its,me.matches,HMAP[H].name);
   return html+NOTE+'</div>';
 }
 async function coachTab(){
@@ -712,7 +801,7 @@ const SRC=[
   {n:'Orbes asegurados',f:['gold_lane_creep_orbs_avg','gold_neutral_creep_orbs_avg','gold_player_orbs_avg','gold_boss_orb_avg'],tip:'Tras cada último golpe dispara al orbe de almas antes que el rival, y niega los suyos.'},
   {n:'Campamentos',f:['gold_neutral_creep_avg'],tip:'Entra a la jungla entre oleada y oleada: abajo tienes la ruta más segura para tu héroe.'},
   {n:'Bajas y asistencias',f:['gold_player_avg','gold_assists_avg','gold_ability_assassinate_avg'],tip:'Llega a las peleas de tu equipo: las asistencias también dan almas.'},
-  {n:'Objetivos y bonus',f:['gold_boss_avg','gold_team_bonus_avg'],tip:'Acompaña cuando tu equipo tira guardianes, santuarios o jefes: es dinero para todos.'},
+  {n:'Objetivos y bonus',f:['gold_boss_avg','gold_team_bonus_avg'],tip:'Acompaña cuando tu equipo tira guardianes, santuarios o jefes: es dinero para todos. En el jefe del medio, rompe tú uno de los 3 cristales con un golpe fuerte: dan almas a quien los rompe.'},
   {n:'Cajas y jarrones',f:['gold_breakable_avg','gold_treasure_avg'],tip:'Rompe las cajas y jarrones que te pillen de camino.'},
   {n:'Perdidas al morir',f:['gold_death_loss_avg'],neg:1,tip:'Mueres más, o con más almas sin gastar: compra antes de arriesgar y mira el mapa de peligro.'}];
 const KV={weak:{n:'débil',v:1,r:8},medium:{n:'medio',v:2,r:10},strong:{n:'fuerte',v:3,r:12},vault:{n:'bóveda',v:2,r:9}};
